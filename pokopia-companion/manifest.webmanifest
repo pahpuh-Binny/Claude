@@ -1,0 +1,12 @@
+{
+  "name": "Pokopia Companion Guide",
+  "short_name": "Pokopia Guide",
+  "description": "Unofficial companion guide for Pokémon Pokopia.",
+  "start_url": "./#home",
+  "display": "standalone",
+  "background_color": "#edf1e8",
+  "theme_color": "#3b7547",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
