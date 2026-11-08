@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A sprout growing out of a grass-topped soil block, on a 32-unit grid
+     scaled into the centre of the 108dp adaptive icon canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="26"
+        android:translateY="25"
+        android:scaleX="1.75"
+        android:scaleY="1.75">
+        <path android:fillColor="@color/icon_leaf" android:pathData="M15,9h2v12h-2z" />
+        <path android:fillColor="@color/icon_grass" android:pathData="M9,8h6v4h-6z" />
+        <path android:fillColor="@color/icon_grass" android:pathData="M17,5h6v4h-6z" />
+        <path android:fillColor="@color/icon_grass" android:pathData="M3,20h26v4h-26z" />
+        <path android:fillColor="@color/icon_soil" android:pathData="M3,24h26v5h-26z" />
+        <path android:fillColor="@color/icon_soil_dark" android:pathData="M3,29h26v2h-26z" />
+    </group>
+</vector>

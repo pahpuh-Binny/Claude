@@ -1,0 +1,32 @@
+name: Pokopia Companion APK
+
+on:
+  push:
+    paths:
+      - "pokopia-companion/**"
+      - ".github/workflows/pokopia-android.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pokopia-companion/android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Build signed APK
+        run: ./gradlew --no-daemon assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PokopiaCompanion-apk
+          path: pokopia-companion/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error

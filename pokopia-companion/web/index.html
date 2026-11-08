@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pokopia Companion Guide</title>
+  <meta name="claude:viewport-fit-sides" content="cover">
+  <meta name="description" content="Unofficial companion guide for Pokémon Pokopia: track your Pokédex, habitats, Ditto's moves, areas and requests.">
+  <meta name="theme-color" content="#edf1e8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111712" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <div class="brand-row">
+        <a class="brand" href="#home">
+          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <rect class="m-leaf" x="15" y="9" width="2" height="12"/>
+            <rect class="m-grass" x="9" y="8" width="6" height="4"/>
+            <rect class="m-grass" x="17" y="5" width="6" height="4"/>
+            <rect class="m-grass" x="3" y="20" width="26" height="4"/>
+            <rect class="m-soil" x="3" y="24" width="26" height="5"/>
+            <rect class="m-soil-2" x="3" y="29" width="26" height="2"/>
+          </svg>
+          <span class="brand-name">Pokopia Companion<span class="brand-sub">Unofficial field guide</span></span>
+        </a>
+        <a class="restore-chip" id="restore-chip" href="#home"></a>
+      </div>
+      <nav class="tabs" id="tabs" aria-label="Guide sections"></nav>
+    </div>
+  </header>
+
+  <main class="wrap" id="view"></main>
+
+  <footer class="site-foot wrap">
+    <p>Unofficial fan-made guide. Not affiliated with or endorsed by Nintendo, The Pokémon Company or Game Freak. Pokémon and Pokopia are trademarks of their respective owners.</p>
+    <p>Game details are compiled from community guides as of November 2026. Anything marked <span class="check">Check in-game</span> has conflicting reports. Your progress stays on this device.</p>
+    <p>Pokémon sprites © Nintendo, Creatures Inc. and GAME FREAK inc., via Pokémon Database (pokemondb.net). Fonts under the SIL Open Font License.</p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="species.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
