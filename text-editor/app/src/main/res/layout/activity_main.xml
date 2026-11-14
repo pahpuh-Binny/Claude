@@ -58,6 +58,34 @@
         android:textSize="13sp"
         android:typeface="monospace" />
 
+    <!-- The table view, shown instead of the editor for CSV files and workbooks. -->
+    <HorizontalScrollView
+        android:id="@+id/table_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <io.github.pahpuhbinny.texteditor.GridRowView
+                android:id="@+id/table_header"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <ListView
+                android:id="@+id/table_list"
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:scrollbars="vertical" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
     <TextView
         android:id="@+id/status"
         android:layout_width="match_parent"

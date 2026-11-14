@@ -1,6 +1,6 @@
 # Text Editor
 
-A basic text editor for Android that opens any file. It is a small native app (about 30 KB) with no ads, no permissions and no network access.
+A basic text editor for Android that opens any file, including CSV files and Excel workbooks. It is a small native app (about 50 KB) with no ads, no permissions and no network access.
 
 ## What it does
 
@@ -13,14 +13,20 @@ A basic text editor for Android that opens any file. It is a small native app (a
   ```
 
   Edit, add or delete the hex bytes between `:` and `|`. The offset and the preview are ignored when saving, so you don't need to keep them in step.
+- **CSV files** (`.csv`, `.tsv`) open as a **table** with column letters and row numbers, like a spreadsheet. Tap a cell to see all of it and change it. Commas, semicolons, tabs and `|` are recognised as separators. **Table view** in the menu switches between the table and the plain text, and works for any text file.
+- **Excel workbooks** (`.xlsx`, `.xlsm`, which is also what Google Sheets downloads) open as a **read-only table**. **Choose sheet…** switches sheets and **Export sheet as CSV…** saves the current sheet as a CSV file you can edit. Formulas show their last calculated result, and dates show as `2025-01-31`.
 - **Hex view** in the menu switches any file between text and hex.
 - **Save** writes back to the same file; **Save as…** writes a copy. If a file is read-only (common when it was shared from another app), the editor offers to save a copy.
-- **Find** searches the file, ignoring case. **Word wrap** turns line wrapping on or off. **Format JSON** re-indents JSON without changing its values or key order.
+- **Find** searches the file or the table, ignoring case. **Word wrap** turns line wrapping on or off. **Format JSON** re-indents JSON without changing its values or key order.
 - Follows the system light or dark theme.
 
 ## Limits
 
 - Text files larger than 1 MB and binary files larger than 64 KB open as a **read-only preview** of their first part, because Android's text box gets slow with more.
+- Workbooks can't be edited or saved, only exported as CSV. Cell formatting (colours, currency and percent styles), charts and images aren't shown, so 25% appears as `0.25`.
+- The old Excel format `.xls` and OpenDocument `.ods` aren't understood and open as hex. Google Sheets files that live only in Drive have to be downloaded as `.xlsx` or `.csv` first.
+- Tables show at most 256 columns, and workbooks at most 100,000 rows per sheet and 600,000 cells in total.
+- Editing a cell rewrites the whole CSV file with standard quoting, so quotes that weren't needed are dropped.
 - There is no syntax colouring, and one file is open at a time.
 - Unsaved changes are lost if Android closes the app in the background, so save before switching away for long.
 
@@ -46,4 +52,6 @@ export ANDROID_HOME=/path/to/android-sdk
 ## Code
 
 - `app/src/main/java/.../MainActivity.java` is the screen: opening, saving, the menu and find.
-- `app/src/main/java/.../FileCodec.java` converts file bytes to text or hex and back. It has no Android dependencies and is covered by `app/src/test/.../FileCodecTest.java`.
+- `FileCodec.java` converts file bytes to text or hex and back, `Csv.java` reads and writes CSV, and `Xlsx.java` reads workbooks. They have no Android dependencies and each has a unit test in `app/src/test/`.
+- `SheetTable.java` and `GridRowView.java` draw the table.
+- `MainActivityTest.java` opens JSON, binary, CSV and workbook files in the real screen on a simulated Android (Robolectric).

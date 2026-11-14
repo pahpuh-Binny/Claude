@@ -29,6 +29,16 @@
     <string name="json_invalid">This isn’t valid JSON</string>
     <string name="too_big_for_hex">Hex view can edit files up to %1$s.</string>
 
+    <string name="table_view">Table view</string>
+    <string name="choose_sheet">Choose sheet…</string>
+    <string name="export_csv">Export sheet as CSV…</string>
+    <string name="exported">Exported</string>
+    <string name="export_failed">Couldn’t export the sheet</string>
+    <string name="table_empty">There are no rows to show as a table.</string>
+    <string name="table_size">%1$d rows × %2$d columns</string>
+    <string name="sheet_cut">only the first part is shown</string>
+    <string name="columns_cut">showing the first %1$d columns</string>
+    <string name="workbook_read_only">read-only</string>
     <string name="mode_hex">Hex</string>
     <string name="preview_note">read-only preview of the first %1$s</string>
 </resources>

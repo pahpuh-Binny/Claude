@@ -18,23 +18,31 @@ import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
  * A single-screen editor. Text files (JSON, HTML, XML, code, logs…) open as
- * text; anything that is not valid text opens as editable hex.
+ * text; anything that is not valid text opens as editable hex. CSV files and
+ * Excel workbooks (.xlsx) also open as a table.
  */
 public class MainActivity extends Activity {
     /** Larger text files open as a read-only preview of their first part. */
@@ -44,11 +52,16 @@ public class MainActivity extends Activity {
 
     private static final int REQUEST_OPEN = 1;
     private static final int REQUEST_SAVE_AS = 2;
+    private static final int REQUEST_EXPORT = 3;
+    /** Larger workbooks are not read as tables. */
+    private static final long WORKBOOK_LIMIT = 64L * 1024 * 1024;
 
     private EditText editor;
     private TextView status;
     private View findBar;
     private EditText findInput;
+    private View tableScroll;
+    private SheetTable table;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
 
@@ -66,6 +79,15 @@ public class MainActivity extends Activity {
     private boolean wordWrap = true;
     /** True while the app itself changes the editor text. */
     private boolean settingText;
+    /** The table is shown instead of the editor. */
+    private boolean tableMode;
+    /** The sheets of the open Excel workbook, or null for any other file. */
+    private List<Xlsx.Sheet> workbook;
+    private int sheetIndex;
+    /** The rows of the open CSV file while it is shown as a table. */
+    private List<String[]> csvRows;
+    private char csvDelimiter = ',';
+    private boolean csvTrailingNewline;
     /** Counts loads, so that a slow one cannot replace a newer one. */
     private int loadId;
     /** Bytes waiting to be written once the user has picked a "Save as" location. */
@@ -81,6 +103,11 @@ public class MainActivity extends Activity {
         status = findViewById(R.id.status);
         findBar = findViewById(R.id.find_bar);
         findInput = findViewById(R.id.find_input);
+
+        tableScroll = findViewById(R.id.table_scroll);
+        table = new SheetTable(this, (HorizontalScrollView) tableScroll,
+                (GridRowView) findViewById(R.id.table_header),
+                (ListView) findViewById(R.id.table_list), this::onCellClick);
 
         // The text can be far larger than Android allows in saved state.
         editor.setSaveEnabled(false);
@@ -149,9 +176,14 @@ public class MainActivity extends Activity {
     public boolean onPrepareOptionsMenu(Menu menu) {
         menu.findItem(R.id.action_save).setEnabled(!preview);
         menu.findItem(R.id.action_save_as).setEnabled(!preview);
-        menu.findItem(R.id.action_hex).setChecked(hexMode);
-        menu.findItem(R.id.action_wrap).setChecked(wordWrap).setEnabled(!hexMode);
-        menu.findItem(R.id.action_format_json).setEnabled(!hexMode && !preview);
+        boolean sheets = tableMode && workbook != null;
+        menu.findItem(R.id.action_sheet).setVisible(sheets && workbook.size() > 1);
+        menu.findItem(R.id.action_export_csv).setVisible(sheets);
+        menu.findItem(R.id.action_table).setChecked(tableMode)
+                .setEnabled(workbook != null || !hexMode);
+        menu.findItem(R.id.action_hex).setChecked(hexMode && !tableMode);
+        menu.findItem(R.id.action_wrap).setChecked(wordWrap).setEnabled(!hexMode && !tableMode);
+        menu.findItem(R.id.action_format_json).setEnabled(!hexMode && !preview && !tableMode);
         return true;
     }
 
@@ -168,8 +200,24 @@ public class MainActivity extends Activity {
             confirmDiscard(this::newDocument);
         } else if (id == R.id.action_find) {
             showFindBar(true);
+        } else if (id == R.id.action_table) {
+            if (tableMode) {
+                setTableVisible(false);
+            } else {
+                enterTable();
+            }
+        } else if (id == R.id.action_sheet) {
+            chooseSheet();
+        } else if (id == R.id.action_export_csv) {
+            exportSheet();
         } else if (id == R.id.action_hex) {
-            toggleHex();
+            if (tableMode) {
+                // Leaving the table shows what is underneath: hex for a workbook.
+                setTableVisible(false);
+                if (!hexMode) toggleHex();
+            } else {
+                toggleHex();
+            }
         } else if (id == R.id.action_wrap) {
             wordWrap = !wordWrap;
             applyWrap();
@@ -204,6 +252,10 @@ public class MainActivity extends Activity {
             } else {
                 afterSave = null;
             }
+        } else if (requestCode == REQUEST_EXPORT) {
+            byte[] bytes = pendingSave;
+            pendingSave = null;
+            if (picked != null && bytes != null) writeExport(picked, bytes);
         }
     }
 
@@ -217,6 +269,7 @@ public class MainActivity extends Activity {
         crlf = false;
         preview = false;
         fileSize = 0;
+        workbook = null;
         showContent("");
         dirty = false;
         updateTitle();
@@ -243,6 +296,7 @@ public class MainActivity extends Activity {
                     text = FileCodec.toHex(data);
                 }
                 boolean isPreview = cut;
+                List<Xlsx.Sheet> sheets = decoded.isText ? null : readWorkbook(source, displayName);
                 runOnUiThread(() -> {
                     if (id != loadId || isDestroyed()) return;
                     uri = source;
@@ -253,8 +307,15 @@ public class MainActivity extends Activity {
                     crlf = decoded.crlf;
                     preview = isPreview;
                     fileSize = total[0];
+                    workbook = sheets;
+                    sheetIndex = 0;
                     showContent(text);
                     dirty = false;
+                    // Spreadsheets start as a table; the menu switches to text or hex.
+                    if (sheets != null || (decoded.isText && isCsvName(displayName)
+                            && !text.isEmpty())) {
+                        enterTable();
+                    }
                     updateTitle();
                 });
             } catch (IOException | RuntimeException e) {
@@ -283,6 +344,44 @@ public class MainActivity extends Activity {
             }
             total[0] = count;
             return FileCodec.truncate(out.toByteArray(), limit);
+        }
+    }
+
+    private static boolean isCsvName(String fileName) {
+        String lower = fileName.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".csv") || lower.endsWith(".tsv") || lower.endsWith(".tab");
+    }
+
+    /**
+     * Reads an Excel workbook's sheets, or returns null if the file is not one
+     * or cannot be read (it then stays open as hex).
+     */
+    private List<Xlsx.Sheet> readWorkbook(Uri source, String fileName) {
+        String lower = fileName.toLowerCase(Locale.ROOT);
+        String mime = getContentResolver().getType(source);
+        boolean isWorkbook = lower.endsWith(".xlsx") || lower.endsWith(".xlsm")
+                || (mime != null && mime.contains("spreadsheetml"));
+        if (!isWorkbook) return null;
+        // Zip files are read from the end, so the workbook needs a real file.
+        File copy = new File(getCacheDir(), "workbook.tmp");
+        try (InputStream in = getContentResolver().openInputStream(source);
+                OutputStream out = new FileOutputStream(copy)) {
+            if (in == null) return null;
+            byte[] buffer = new byte[64 * 1024];
+            long count = 0;
+            int n;
+            while ((n = in.read(buffer)) > 0) {
+                count += n;
+                if (count > WORKBOOK_LIMIT) return null;
+                out.write(buffer, 0, n);
+            }
+            out.flush();
+            List<Xlsx.Sheet> sheets = Xlsx.read(copy);
+            return sheets == null || sheets.isEmpty() ? null : sheets;
+        } catch (IOException | RuntimeException e) {
+            return null;
+        } finally {
+            copy.delete();
         }
     }
 
@@ -427,6 +526,137 @@ public class MainActivity extends Activity {
         updateTitle();
     }
 
+    // ---- Table view ----
+
+    /** The rows the table is showing. */
+    private List<String[]> tableRows() {
+        return workbook != null ? workbook.get(sheetIndex).rows : csvRows;
+    }
+
+    private void enterTable() {
+        if (workbook != null) {
+            table.setData(workbook.get(sheetIndex).rows);
+        } else if (hexMode) {
+            return;
+        } else {
+            String text = editor.getText().toString();
+            csvDelimiter = Csv.detectDelimiter(text);
+            csvTrailingNewline = text.endsWith("\n") || text.endsWith("\r");
+            csvRows = Csv.parse(text, csvDelimiter);
+            if (csvRows.isEmpty()) {
+                Toast.makeText(this, R.string.table_empty, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            table.setData(csvRows);
+        }
+        setTableVisible(true);
+    }
+
+    private void setTableVisible(boolean visible) {
+        tableMode = visible;
+        tableScroll.setVisibility(visible ? View.VISIBLE : View.GONE);
+        editor.setVisibility(visible ? View.GONE : View.VISIBLE);
+        if (visible) {
+            getSystemService(InputMethodManager.class)
+                    .hideSoftInputFromWindow(editor.getWindowToken(), 0);
+        }
+        invalidateOptionsMenu();
+        updateStatus();
+    }
+
+    private void chooseSheet() {
+        String[] names = new String[workbook.size()];
+        for (int i = 0; i < names.length; i++) names[i] = workbook.get(i).name;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.choose_sheet)
+                .setSingleChoiceItems(names, sheetIndex, (dialog, which) -> {
+                    dialog.dismiss();
+                    sheetIndex = which;
+                    enterTable();
+                })
+                .show();
+    }
+
+    /** Shows a cell's full content. Cells of a CSV file can be changed here. */
+    private void onCellClick(int row, int column) {
+        List<String[]> rows = tableRows();
+        String[] cells = rows.get(row);
+        String value = column < cells.length ? cells[column] : "";
+        boolean editable = workbook == null && !preview;
+
+        EditText input = new EditText(this);
+        input.setInputType(EditorInfo.TYPE_CLASS_TEXT | EditorInfo.TYPE_TEXT_FLAG_MULTI_LINE
+                | EditorInfo.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        input.setMaxLines(8);
+        input.setText(value);
+        if (!editable) {
+            // The text can still be selected and copied, but not changed.
+            input.setKeyListener(null);
+            input.setTextIsSelectable(true);
+            input.setBackground(null);
+        }
+        int pad = Math.round(20 * getResources().getDisplayMetrics().density);
+        FrameLayout frame = new FrameLayout(this);
+        frame.setPadding(pad, pad / 2, pad, 0);
+        frame.addView(input);
+
+        AlertDialog.Builder dialog = new AlertDialog.Builder(this)
+                .setTitle(Xlsx.columnName(column) + (row + 1))
+                .setView(frame);
+        if (editable) {
+            dialog.setNegativeButton(android.R.string.cancel, null);
+            dialog.setPositiveButton(android.R.string.ok, (d, w) -> {
+                String changed = input.getText().toString();
+                if (changed.equals(value)) return;
+                String[] target = cells;
+                if (column >= target.length) {
+                    target = Arrays.copyOf(cells, column + 1);
+                    Arrays.fill(target, cells.length, target.length, "");
+                    rows.set(row, target);
+                }
+                target[column] = changed;
+                // The editor's text is what gets saved, so rebuild it from the table.
+                editor.setText(Csv.write(rows, csvDelimiter, csvTrailingNewline));
+                table.refresh();
+                updateStatus();
+            });
+        } else {
+            dialog.setPositiveButton(android.R.string.ok, null);
+        }
+        dialog.show();
+    }
+
+    private void exportSheet() {
+        Xlsx.Sheet sheet = workbook.get(sheetIndex);
+        pendingSave = Csv.write(sheet.rows, ',', true).getBytes(StandardCharsets.UTF_8);
+        int dot = name.lastIndexOf('.');
+        String base = dot > 0 ? name.substring(0, dot) : name;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("text/csv");
+        intent.putExtra(Intent.EXTRA_TITLE, base + " - " + sheet.name + ".csv");
+        startActivityForResult(intent, REQUEST_EXPORT);
+    }
+
+    /** Writes an exported copy without changing which file is open. */
+    private void writeExport(Uri target, byte[] bytes) {
+        io.execute(() -> {
+            try (OutputStream out = getContentResolver().openOutputStream(target, "wt")) {
+                if (out == null) throw new IOException("The file could not be opened.");
+                out.write(bytes);
+                runOnUiThread(() -> {
+                    if (!isDestroyed()) {
+                        Toast.makeText(this, R.string.exported, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } catch (IOException | RuntimeException e) {
+                runOnUiThread(() -> {
+                    if (!isDestroyed()) showError(getString(R.string.export_failed), e);
+                });
+            }
+        });
+    }
+
     private void formatJson() {
         try {
             String formatted = FileCodec.formatJson(editor.getText().toString());
@@ -446,13 +676,20 @@ public class MainActivity extends Activity {
             findInput.selectAll();
             imm.showSoftInput(findInput, 0);
         } else {
-            editor.requestFocus();
+            imm.hideSoftInputFromWindow(findInput.getWindowToken(), 0);
+            if (!tableMode) editor.requestFocus();
         }
     }
 
     private void findNext() {
         String query = findInput.getText().toString().toLowerCase(Locale.ROOT);
         if (query.isEmpty()) return;
+        if (tableMode) {
+            if (!table.findNext(query)) {
+                Toast.makeText(this, R.string.not_found, Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
         String text = editor.getText().toString().toLowerCase(Locale.ROOT);
         int from = Math.max(0, editor.getSelectionEnd());
         int at = text.indexOf(query, from);
@@ -477,7 +714,7 @@ public class MainActivity extends Activity {
         // (the input filter set in onCreate rejects changes).
         editor.setShowSoftInputOnFocus(!preview);
         applyWrap();
-        invalidateOptionsMenu();
+        setTableVisible(false);
     }
 
     private void applyWrap() {
@@ -492,7 +729,16 @@ public class MainActivity extends Activity {
 
     private void updateStatus() {
         StringBuilder sb = new StringBuilder();
-        if (hexMode) {
+        if (tableMode && workbook != null) {
+            Xlsx.Sheet sheet = workbook.get(sheetIndex);
+            sb.append(sheet.name);
+            if (workbook.size() > 1) {
+                sb.append(" (").append(sheetIndex + 1).append('/').append(workbook.size())
+                        .append(')');
+            }
+            sb.append(" · ").append(getString(R.string.workbook_read_only));
+            if (sheet.truncated) sb.append(" · ").append(getString(R.string.sheet_cut));
+        } else if (hexMode) {
             sb.append(getString(R.string.mode_hex));
         } else {
             sb.append(charset.name());
@@ -502,7 +748,14 @@ public class MainActivity extends Activity {
         if (uri != null) {
             sb.append(" · ").append(Formatter.formatShortFileSize(this, fileSize));
         }
-        if (preview) {
+        if (tableMode) {
+            int columns = table.columnCount();
+            sb.append(" · ").append(getString(R.string.table_size, table.rowCount(), columns));
+            if (columns > SheetTable.MAX_COLUMNS) {
+                sb.append(" · ").append(getString(R.string.columns_cut, SheetTable.MAX_COLUMNS));
+            }
+        }
+        if (preview && !(tableMode && workbook != null)) {
             sb.append(" · ").append(getString(R.string.preview_note,
                     Formatter.formatShortFileSize(this, hexMode ? HEX_LIMIT : TEXT_LIMIT)));
         }

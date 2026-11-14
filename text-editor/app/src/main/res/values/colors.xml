@@ -4,6 +4,8 @@
     <color name="primary_dark">#22384F</color>
     <color name="accent">#2C7BE5</color>
     <color name="bar_background">#ECEFF3</color>
+    <color name="grid_line">#D5DAE1</color>
+    <color name="cell_highlight">#FFE08A</color>
     <color name="icon_background">#2F4A66</color>
     <color name="icon_page">#FFFFFF</color>
     <color name="icon_line">#2F4A66</color>

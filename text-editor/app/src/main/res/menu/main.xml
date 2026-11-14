@@ -5,6 +5,9 @@
     <item android:id="@+id/action_save_as" android:title="@string/save_as" />
     <item android:id="@+id/action_new" android:title="@string/new_file" />
     <item android:id="@+id/action_find" android:title="@string/find" />
+    <item android:id="@+id/action_sheet" android:title="@string/choose_sheet" />
+    <item android:id="@+id/action_export_csv" android:title="@string/export_csv" />
+    <item android:id="@+id/action_table" android:title="@string/table_view" android:checkable="true" />
     <item android:id="@+id/action_hex" android:title="@string/hex_view" android:checkable="true" />
     <item android:id="@+id/action_wrap" android:title="@string/word_wrap" android:checkable="true" />
     <item android:id="@+id/action_format_json" android:title="@string/format_json" />
