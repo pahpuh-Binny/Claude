@@ -1,0 +1,32 @@
+name: Text Editor APK
+
+on:
+  push:
+    paths:
+      - "text-editor/**"
+      - ".github/workflows/text-editor-android.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: text-editor
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Test and build signed APK
+        run: ./gradlew --no-daemon testDebugUnitTest assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TextEditor-apk
+          path: text-editor/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error

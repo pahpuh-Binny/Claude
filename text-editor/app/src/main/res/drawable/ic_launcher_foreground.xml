@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A page with a folded corner and lines of text, inside the 66dp safe
+     zone of the 108dp adaptive icon canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="@color/icon_page" android:pathData="M36,28h26l12,12v40h-38z" />
+    <path android:fillColor="@color/icon_accent" android:pathData="M62,28l12,12h-12z" />
+    <path android:fillColor="@color/icon_line" android:pathData="M42,46h26v4h-26z" />
+    <path android:fillColor="@color/icon_line" android:pathData="M42,55h26v4h-26z" />
+    <path android:fillColor="@color/icon_line" android:pathData="M42,64h16v4h-16z" />
+</vector>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Text Editor</string>
+    <string name="untitled">Untitled</string>
+    <string name="editor_hint">Start typing, or tap Open to choose a file.</string>
+    <string name="loading">Opening…</string>
+
+    <string name="open">Open</string>
+    <string name="save">Save</string>
+    <string name="save_as">Save as…</string>
+    <string name="new_file">New file</string>
+    <string name="find">Find</string>
+    <string name="hex_view">Hex view</string>
+    <string name="word_wrap">Word wrap</string>
+    <string name="format_json">Format JSON</string>
+
+    <string name="find_hint">Find in file</string>
+    <string name="find_next">Next</string>
+    <string name="find_close">Close</string>
+    <string name="not_found">No match found.</string>
+
+    <string name="saved">Saved</string>
+    <string name="discard">Discard</string>
+    <string name="unsaved_message">Save your changes to “%1$s”?</string>
+    <string name="open_failed">Couldn’t open the file</string>
+    <string name="save_failed">Couldn’t save the file</string>
+    <string name="save_failed_message">%1$s\n\nThe file may be read-only. You can save a copy somewhere else.</string>
+    <string name="hex_invalid">Fix the hex before switching views</string>
+    <string name="json_invalid">This isn’t valid JSON</string>
+    <string name="too_big_for_hex">Hex view can edit files up to %1$s.</string>
+
+    <string name="mode_hex">Hex</string>
+    <string name="preview_note">read-only preview of the first %1$s</string>
+</resources>
