@@ -1,6 +1,6 @@
 # Pokopia Companion Guide
 
-An unofficial companion app for **Pokémon Pokopia** (Nintendo Switch 2). It runs as an Android app or in any web browser. Keep it open on your phone while you play to track your progress and look things up.
+An unofficial companion app for **Pokémon Pokopia** (Nintendo Switch 2). It runs as an Android app, in any web browser, or on an ESP32 "Cheap Yellow Display" touchscreen board. Keep it beside you while you play to track your progress and look things up.
 
 ## What's inside
 
@@ -24,6 +24,10 @@ An unofficial companion app for **Pokémon Pokopia** (Nintendo Switch 2). It run
 The app needs Android 8.0 or newer and works fully offline. Everything, including all 1,025 Pokémon pictures and the fonts, is inside the app.
 
 **Your progress** is stored inside the app. Installing a newer APK over the old one keeps it, because every build is signed with the same key (see `android/keystore/`). Uninstalling the app deletes it, so use **Journal → Share save code** to back it up first. The share button can send the code to Google Drive, Keep or a message to yourself. Paste it into **Load save code** to restore.
+
+## Run it on a Cheap Yellow Display (ESP32-2432S028)
+
+The `cyd/` folder holds native firmware for the CYD touchscreen board, with the same guide, pictures and progress tracking on a 2.8" screen. It shares save codes with the phone app. See [cyd/README.md](cyd/README.md) to flash it from your browser.
 
 ## Use it in a browser
 
@@ -76,8 +80,11 @@ web/                     The app (HTML, CSS, JS), shared by the website and the 
   sprites/               Pokémon pictures (generated)
   fonts/                 Bundled fonts (SIL Open Font License)
 android/                 Android Studio / Gradle project that wraps web/
+cyd/                     ESP32 Cheap Yellow Display firmware (PlatformIO + LVGL)
 tools/fetch_sprites.py   Downloads sprites and builds species.js
 tools/fetch_fonts.py     Downloads the fonts
+tools/gen_cyd_*.py       Generates the CYD firmware's data, sprites and fonts from web/
+tools/make_sd_card.py    Builds the CYD's optional SD card picture pack
 ```
 
 ## Credits and legal

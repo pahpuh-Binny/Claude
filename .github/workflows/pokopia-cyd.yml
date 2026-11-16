@@ -1,0 +1,50 @@
+name: Pokopia Companion CYD firmware
+
+on:
+  push:
+    paths:
+      - "pokopia-companion/cyd/**"
+      - "pokopia-companion/web/**"
+      - "pokopia-companion/tools/**"
+      - ".github/workflows/pokopia-cyd.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('pokopia-companion/cyd/platformio.ini') }}
+
+      - name: Install tools
+        run: pip install platformio pillow
+
+      - name: Build firmware (original CYD and two-port CYD)
+        working-directory: pokopia-companion/cyd
+        run: pio run -e cyd -e cyd2usb
+
+      - name: Build SD card picture pack
+        working-directory: pokopia-companion
+        run: |
+          python tools/make_sd_card.py sd-card
+          cd sd-card && zip -qr ../pokopia-sd-card.zip pokopia
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PokopiaCompanion-CYD-firmware
+          path: pokopia-companion/cyd/.pio/build/*/pokopia-companion-*-factory.bin
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PokopiaCompanion-CYD-sd-card
+          path: pokopia-companion/pokopia-sd-card.zip
+          if-no-files-found: error

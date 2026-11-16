@@ -1,0 +1,4 @@
+.pio/
+sim/build/
+sim/sd/
+sim/run*/

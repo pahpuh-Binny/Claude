@@ -3,7 +3,8 @@ name: Pokopia Companion APK
 on:
   push:
     paths:
-      - "pokopia-companion/**"
+      - "pokopia-companion/web/**"
+      - "pokopia-companion/android/**"
       - ".github/workflows/pokopia-android.yml"
   workflow_dispatch:
 
