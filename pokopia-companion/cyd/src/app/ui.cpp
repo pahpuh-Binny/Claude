@@ -245,7 +245,8 @@ static save::Status next_status(save::Status s) {
 
 enum Scr {
     S_HOME, S_DEX, S_MON, S_HABITATS, S_HABITAT, S_MOVES, S_MOVE, S_SPECS, S_SPEC,
-    S_AREAS, S_AREA, S_COOKING, S_TIPS, S_REQUESTS, S_SETTINGS, S_CALIBRATE, S_QR, S_ABOUT
+    S_AREAS, S_AREA, S_COOKING, S_TIPS, S_REQUESTS, S_SETTINGS, S_CALIBRATE, S_QR, S_ABOUT,
+    S_SPLASH, S_COLORS
 };
 
 struct Nav {
@@ -467,7 +468,7 @@ struct Frame {
     lv_obj_t* bar;     // optional bottom bar
 };
 
-static Frame frame(const char* title, bool with_bar = false) {
+static Frame frame(const char* title, bool with_bar = false, bool with_back = true) {
     Frame f{};
     lv_obj_t* scr = current_screen;
 
@@ -477,14 +478,18 @@ static Frame frame(const char* title, bool with_bar = false) {
     lv_obj_set_flex_flow(f.header, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(f.header, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-    lv_obj_t* back_btn = plain(f.header);
-    lv_obj_set_size(back_btn, 34, 30);
-    style_clickable(back_btn, &theme::btn);
-    lv_obj_set_style_pad_all(back_btn, 0, 0);
-    lv_obj_t* arrow = lv_label_create(back_btn);
-    lv_label_set_text(arrow, LV_SYMBOL_LEFT);
-    lv_obj_center(arrow);
-    lv_obj_add_event_cb(back_btn, on_back, LV_EVENT_CLICKED, nullptr);
+    if (with_back) {
+        lv_obj_t* back_btn = plain(f.header);
+        lv_obj_set_size(back_btn, 34, 30);
+        style_clickable(back_btn, &theme::btn);
+        lv_obj_set_style_pad_all(back_btn, 0, 0);
+        lv_obj_t* arrow = lv_label_create(back_btn);
+        lv_label_set_text(arrow, LV_SYMBOL_LEFT);
+        lv_obj_center(arrow);
+        lv_obj_add_event_cb(back_btn, on_back, LV_EVENT_CLICKED, nullptr);
+    } else {
+        lv_obj_set_style_pad_left(f.header, 10, 0);
+    }
 
     lv_obj_t* t = text_dot(f.header, title, &font_title_20, P.ink);
     lv_obj_set_width(t, 1);
@@ -1422,13 +1427,6 @@ static void on_theme(lv_event_t*) {
     reload();
 }
 
-static void on_invert(lv_event_t* e) {
-    save::settings().invert = !save::settings().invert;
-    save::write_settings();
-    platform::set_color_inversion(save::settings().invert);
-    set_button_text(lv_event_get_target_obj(e), save::settings().invert ? "On" : "Off");
-}
-
 static void on_brightness(lv_event_t* e) {
     lv_obj_t* s = lv_event_get_target_obj(e);
     save::settings().brightness = (uint8_t)lv_slider_get_value(s);
@@ -1499,11 +1497,14 @@ static void build_settings() {
     lv_obj_add_event_cb(s, on_brightness, LV_EVENT_RELEASED, nullptr);
     lv_obj_set_style_margin_right(s, 10, 0);
 
-    r = settings_row(f.body, "Invert colors", "Turn on if the screen looks like a negative");
-    button(r, save::settings().invert ? "On" : "Off", on_invert);
+    r = settings_row(f.body, "Screen colors", "Invert colors or swap red and blue");
+    button(r, "Check", on_go, (void*)(intptr_t)S_COLORS);
 
     r = settings_row(f.body, "Touch calibration", "Fix taps that land in the wrong place");
     button(r, "Start", on_go, (void*)(intptr_t)S_CALIBRATE);
+
+    text(f.body, "Tip: hold the screen or the BOOT button while the board starts to run touch and "
+                 "color setup again.", &font_small_12, P.ink_soft);
 
     eyebrow(f.body, "SAVE CODE");
     text(f.body, "Move progress to and from the phone app. It uses the same save code.",
@@ -1523,12 +1524,28 @@ static void build_settings() {
     button(r, "Open", on_go, (void*)(intptr_t)S_ABOUT);
 }
 
-// Touch calibration: tap two targets, the corners map raw readings to pixels.
+// ===================================================================
+// Screen setup: touch calibration, colour check and the boot screen
+// ===================================================================
+//
+// On the first start, and whenever the screen or the BOOT button is held
+// while the board starts, the device walks through two steps before Home:
+// tap two targets to calibrate touch, then check the colours (invert them
+// or swap red and blue until the test boxes match their labels).
+
+static void finish_setup_to_colors() {
+    // Replace the calibration screen with the colour check, keeping setup mode.
+    stack[depth - 1] = {S_COLORS, 1, 0};
+    schedule_build();
+}
+
+// Touch calibration: tap two targets; their raw readings map to pixels.
 static lv_timer_t* cal_timer = nullptr;
 static int cal_step = 0;
 static int32_t cal_sum[2][2];
 static int cal_samples = 0;
 static bool cal_was_down = false;
+static bool cal_armed = false;  // false until the screen has been released once
 static lv_obj_t* cal_target = nullptr;
 static lv_obj_t* cal_label = nullptr;
 static const int32_t CAL_PTS[2][2] = {{24, 24}, {W - 24, H - 24}};
@@ -1537,8 +1554,10 @@ static void cal_place_target() {
     lv_obj_set_pos(cal_target, CAL_PTS[cal_step][0] - 12, CAL_PTS[cal_step][1] - 12);
 }
 
-static void cal_finish() {
+static bool cal_finish() {
     int32_t x1 = cal_sum[0][0], y1 = cal_sum[0][1], x2 = cal_sum[1][0], y2 = cal_sum[1][1];
+    // Taps this close together can't be the two corners: ask again.
+    if (abs(x2 - x1) < 800 || abs(y2 - y1) < 800) return false;
     int32_t dx = (x2 - x1) * CAL_PTS[0][0] / (CAL_PTS[1][0] - CAL_PTS[0][0]);
     int32_t dy = (y2 - y1) * CAL_PTS[0][1] / (CAL_PTS[1][1] - CAL_PTS[0][1]);
     int16_t cal[4] = {(int16_t)(x1 - dx), (int16_t)(x2 + dx), (int16_t)(y1 - dy), (int16_t)(y2 + dy)};
@@ -1546,52 +1565,69 @@ static void cal_finish() {
     save::settings().cal_set = true;
     save::write_settings();
     platform::set_touch_calibration(cal);
+    return true;
+}
+
+static void cal_leave() {
+    if (cal_timer) lv_timer_delete(cal_timer);
+    cal_timer = nullptr;
+    if (stack[depth - 1].param == 1) finish_setup_to_colors();
+    else back();
 }
 
 static void cal_poll(lv_timer_t*) {
     int16_t x, y;
     bool down = platform::touch_raw(&x, &y);
+    if (!cal_armed) {
+        if (!down) cal_armed = true;  // ignore a touch still held from start-up
+        cal_was_down = false;
+        return;
+    }
     if (down) {
         if (!cal_was_down) { cal_sum[cal_step][0] = cal_sum[cal_step][1] = 0; cal_samples = 0; }
         cal_sum[cal_step][0] += x;
         cal_sum[cal_step][1] += y;
         cal_samples++;
-    } else if (cal_was_down && cal_samples >= 3) {
+    } else if (cal_was_down && cal_samples >= 2) {
         cal_sum[cal_step][0] /= cal_samples;
         cal_sum[cal_step][1] /= cal_samples;
         cal_step++;
         if (cal_step == 2) {
-            lv_timer_delete(cal_timer);
-            cal_timer = nullptr;
-            cal_finish();
-            back();
-            return;
+            if (cal_finish()) {
+                cal_leave();
+                return;
+            }
+            cal_step = 0;
+            lv_label_set_text(cal_label, "Those taps were too close together. Tap the top-left target again.");
+        } else {
+            lv_label_set_text(cal_label, "Now tap the target in the bottom-right corner.");
         }
         cal_place_target();
-        lv_label_set_text(cal_label, "Now tap the target in the bottom-right corner.");
     }
     cal_was_down = down;
 }
 
-static void on_cal_cancel(lv_event_t*) {
-    if (cal_timer) lv_timer_delete(cal_timer);
-    cal_timer = nullptr;
-    back();
-}
+static void on_cal_skip(lv_event_t*) { cal_leave(); }
 
-static void build_calibrate() {
+static void build_calibrate(bool setup) {
     lv_obj_t* scr = current_screen;
     scroller = nullptr;
     cal_step = 0;
     cal_samples = 0;
     cal_was_down = false;
+    cal_armed = false;
+
+    if (setup) {
+        lv_obj_t* step = text(scr, "SETUP 1 OF 2: TOUCH", &font_small_12, P.moss, false);
+        lv_obj_align(step, LV_ALIGN_TOP_MID, 0, 46);
+    }
     cal_label = text(scr, "Tap the center of the target in the top-left corner. Use a stylus or fingernail.",
                      &font_bold_14, P.ink);
     lv_obj_set_width(cal_label, 240);
     lv_obj_set_style_text_align(cal_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(cal_label, LV_ALIGN_CENTER, 0, -14);
-    lv_obj_t* cancel = button(scr, "Cancel", on_cal_cancel);
-    lv_obj_align(cancel, LV_ALIGN_CENTER, 0, 36);
+    lv_obj_align(cal_label, LV_ALIGN_CENTER, 0, -10);
+    lv_obj_t* skip = button(scr, setup ? "Skip" : "Cancel", on_cal_skip);
+    lv_obj_align(skip, LV_ALIGN_CENTER, 0, 44);
 
     cal_target = plain(scr);
     lv_obj_set_size(cal_target, 24, 24);
@@ -1606,7 +1642,142 @@ static void build_calibrate() {
     lv_obj_center(dot);
     cal_place_target();
     if (cal_timer) lv_timer_delete(cal_timer);
-    cal_timer = lv_timer_create(cal_poll, 30, nullptr);
+    cal_timer = lv_timer_create(cal_poll, 20, nullptr);
+}
+
+// --- Colour check ---
+
+static void on_color_invert(lv_event_t* e) {
+    save::Settings& s = save::settings();
+    s.invert = !s.invert;
+    platform::set_color_inversion(s.invert);
+    save::write_settings();
+    lv_obj_t* b = lv_event_get_target_obj(e);
+    set_button_text(b, s.invert ? "Invert: On" : "Invert: Off");
+    if (s.invert) lv_obj_add_style(b, &theme::chip_seen, 0); else lv_obj_remove_style(b, &theme::chip_seen, 0);
+}
+
+static void on_color_swap(lv_event_t* e) {
+    save::Settings& s = save::settings();
+    s.swap_rb = !s.swap_rb;
+    platform::set_color_swap(s.swap_rb);
+    save::write_settings();
+    lv_obj_t* b = lv_event_get_target_obj(e);
+    set_button_text(b, s.swap_rb ? "Swap red/blue: On" : "Swap red/blue: Off");
+    if (s.swap_rb) lv_obj_add_style(b, &theme::chip_seen, 0); else lv_obj_remove_style(b, &theme::chip_seen, 0);
+}
+
+static void on_colors_done(lv_event_t*) {
+    if (stack[depth - 1].param == 1) {
+        save::settings().setup_done = true;
+        save::write_settings();
+        go_home();
+    } else {
+        back();
+    }
+}
+
+static void on_recalibrate(lv_event_t*) {
+    if (stack[depth - 1].param == 1) {
+        stack[depth - 1] = {S_CALIBRATE, 1, 0};
+        schedule_build();
+    } else {
+        go(S_CALIBRATE, 0);
+    }
+}
+
+static void swatch(lv_obj_t* parent, uint32_t hex, const char* name, lv_color_t label_color) {
+    lv_obj_t* s = plain(parent);
+    lv_obj_set_size(s, 68, 34);
+    lv_obj_set_style_bg_color(s, lv_color_hex(hex), 0);
+    lv_obj_set_style_bg_opa(s, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(s, 6, 0);
+    lv_obj_set_style_border_width(s, 1, 0);
+    lv_obj_set_style_border_color(s, P.line, 0);
+    lv_obj_t* l = text(s, name, &font_bold_14, label_color, false);
+    lv_obj_center(l);
+}
+
+static void build_colors(bool setup) {
+    Frame f = frame(setup ? "Check the colors" : "Screen colors", true, !setup);
+    if (setup) text(f.right, "2 OF 2", &font_mono_12, P.moss, false);
+    lv_obj_remove_flag(f.body, LV_OBJ_FLAG_SCROLLABLE);
+    scroller = nullptr;
+
+    text(f.body, "Each box should match its label.", &font_bold_14);
+    lv_obj_t* row = box(f.body, LV_FLEX_FLOW_ROW, 6);
+    swatch(row, 0xE53935, "Red", lv_color_white());
+    swatch(row, 0x43A047, "Green", lv_color_white());
+    swatch(row, 0x1E88E5, "Blue", lv_color_white());
+    swatch(row, 0xFFFFFF, "White", lv_color_black());
+    text(f.body, "Looks like a photo negative? Turn on Invert. Red and blue swapped? Turn on Swap.",
+         &font_small_12, P.ink_soft);
+
+    save::Settings& s = save::settings();
+    lv_obj_t* toggles = box(f.body, LV_FLEX_FLOW_ROW, 6);
+    lv_obj_t* inv = button(toggles, s.invert ? "Invert: On" : "Invert: Off", on_color_invert);
+    if (s.invert) lv_obj_add_style(inv, &theme::chip_seen, 0);
+    lv_obj_t* sw = button(toggles, s.swap_rb ? "Swap red/blue: On" : "Swap red/blue: Off", on_color_swap);
+    if (s.swap_rb) lv_obj_add_style(sw, &theme::chip_seen, 0);
+    lv_obj_set_flex_grow(sw, 1);
+
+    button(f.bar, "Recalibrate touch", on_recalibrate);
+    button(f.bar, LV_SYMBOL_OK " Looks right", on_colors_done, nullptr, true);
+}
+
+// --- Boot screen: hold the screen or BOOT to rerun setup ---
+
+static lv_timer_t* splash_timer = nullptr;
+static uint32_t splash_started = 0;
+static bool splash_held = false;
+static const uint32_t SPLASH_MS = 1500;
+
+static void splash_poll(lv_timer_t*) {
+    int16_t x, y;
+    if (platform::touch_raw(&x, &y) || platform::boot_button()) splash_held = true;
+    if (lv_tick_elaps(splash_started) < SPLASH_MS) return;
+    lv_timer_delete(splash_timer);
+    splash_timer = nullptr;
+    if (splash_held || !save::settings().setup_done) {
+        depth = 1;
+        stack[0] = {S_CALIBRATE, 1, 0};
+        schedule_build();
+    } else {
+        go_home();
+    }
+}
+
+static void build_splash() {
+    lv_obj_t* scr = current_screen;
+    scroller = nullptr;
+
+    // The sprout-on-a-block logo, drawn large.
+    lv_obj_t* logo = plain(scr);
+    lv_obj_set_size(logo, 64, 64);
+    lv_obj_align(logo, LV_ALIGN_CENTER, 0, -46);
+    struct { int x, y, w, h; uint8_t tile; } parts[] = {
+        {30, 18, 4, 26, gd::T_TREE}, {16, 16, 14, 8, gd::T_GRASS}, {34, 8, 14, 8, gd::T_GRASS},
+        {4, 42, 56, 8, gd::T_GRASS}, {4, 50, 56, 12, gd::T_SOIL},
+    };
+    for (auto& p : parts) {
+        lv_obj_t* r = plain(logo);
+        lv_obj_set_pos(r, p.x, p.y);
+        lv_obj_set_size(r, p.w, p.h);
+        lv_obj_set_style_bg_color(r, theme::tile_color(p.tile), 0);
+        lv_obj_set_style_bg_opa(r, LV_OPA_COVER, 0);
+    }
+    lv_obj_t* name = text(scr, "Pokopia Companion", &font_title_20, P.ink, false);
+    lv_obj_align(name, LV_ALIGN_CENTER, 0, 4);
+    lv_obj_t* hint = text(scr, save::settings().setup_done
+                                   ? "Hold the screen or BOOT to set up touch and colors"
+                                   : "Starting touch and color setup...",
+                          &font_small_12, P.ink_soft, false);
+    lv_obj_align(hint, LV_ALIGN_CENTER, 0, 34);
+
+    splash_held = false;
+    splash_started = lv_tick_get();
+    if (splash_timer) lv_timer_delete(splash_timer);
+    splash_timer = lv_timer_create(splash_poll, 50, nullptr);
 }
 
 // The QR code is drawn into an 8-bit grayscale canvas: LVGL draws that format
@@ -1700,6 +1871,7 @@ static void build_current() {
     armed_btn = nullptr;
     if (disarm_timer) { lv_timer_delete(disarm_timer); disarm_timer = nullptr; }
     if (cal_timer) { lv_timer_delete(cal_timer); cal_timer = nullptr; }
+    if (splash_timer) { lv_timer_delete(splash_timer); splash_timer = nullptr; }
 
     const Nav& n = stack[depth - 1];
     switch (n.scr) {
@@ -1718,7 +1890,9 @@ static void build_current() {
         case S_TIPS: build_tips(); break;
         case S_REQUESTS: build_requests(); break;
         case S_SETTINGS: build_settings(); break;
-        case S_CALIBRATE: build_calibrate(); break;
+        case S_CALIBRATE: build_calibrate(n.param == 1); break;
+        case S_COLORS: build_colors(n.param == 1); break;
+        case S_SPLASH: build_splash(); break;
         case S_QR: build_qr(); break;
         case S_ABOUT: build_about(); break;
     }
@@ -1737,7 +1911,11 @@ static void save_timer(lv_timer_t*) {
 void start() {
     theme::apply(save::settings().dark);
     lv_timer_create(save_timer, 2000, nullptr);
-    go_home();
+    // Boot screen first: it runs touch and colour setup on the first start,
+    // or when the screen or BOOT button is held, then opens Home.
+    depth = 1;
+    stack[0] = {S_SPLASH, 0, 0};
+    schedule_build();
 }
 
 }  // namespace ui

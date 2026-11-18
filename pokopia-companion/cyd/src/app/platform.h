@@ -19,6 +19,7 @@ bool sd_write(const char* path, const std::string& data);
 // Hardware extras.
 void set_backlight(uint8_t percent);
 void set_color_inversion(bool on);
+void set_color_swap(bool on);   // swap red and blue
 void led_flash(uint8_t r, uint8_t g, uint8_t b, uint16_t ms);
 
 // Touch calibration: raw touch reading (true while pressed) and the mapping
@@ -27,6 +28,9 @@ void led_flash(uint8_t r, uint8_t g, uint8_t b, uint16_t ms);
 bool touch_raw(int16_t* x, int16_t* y);
 void set_touch_calibration(const int16_t cal[4]);
 void get_touch_calibration(int16_t cal[4]);
+
+// The board's BOOT button (held during start-up to rerun screen setup).
+bool boot_button();
 
 const char* firmware_version();
 uint32_t free_heap();

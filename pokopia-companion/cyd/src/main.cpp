@@ -18,6 +18,7 @@
 
 // ---------------- CYD pins ----------------
 static const int PIN_BACKLIGHT = 21;
+static const int PIN_BOOT_BUTTON = 0;  // the BOOT button, low when pressed
 static const int PIN_LED_R = 4, PIN_LED_G = 16, PIN_LED_B = 17;  // active low
 static const int XPT_CLK = 25, XPT_MOSI = 32, XPT_MISO = 39, XPT_CS = 33;
 static const int SD_SCK = 18, SD_MISO = 19, SD_MOSI = 23, SD_CS = 5;
@@ -33,6 +34,7 @@ static bool sd_ok = false;
 static bool sd_sprites = false;
 static int16_t touch_cal[4] = {200, 3700, 240, 3800};
 static uint32_t led_off_at = 0;
+static bool swap_red_blue = false;
 
 // ---------------- XPT2046 touch (bit-banged SPI) ----------------
 
@@ -145,6 +147,14 @@ void set_color_inversion(bool on) {
 #endif
 }
 
+void set_color_swap(bool on) {
+    swap_red_blue = on;
+    lv_obj_t* scr = lv_screen_active();
+    if (scr) lv_obj_invalidate(scr);  // redraw everything with the new order
+}
+
+bool boot_button() { return digitalRead(PIN_BOOT_BUTTON) == LOW; }
+
 void led_flash(uint8_t r, uint8_t g, uint8_t b, uint16_t ms) {
     digitalWrite(PIN_LED_R, r ? LOW : HIGH);
     digitalWrite(PIN_LED_G, g ? LOW : HIGH);
@@ -167,6 +177,14 @@ uint32_t free_heap() { return ESP.getFreeHeap(); }
 static void flush_cb(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
     uint32_t w = lv_area_get_width(area);
     uint32_t h = lv_area_get_height(area);
+    if (swap_red_blue) {
+        // RGB565: move the 5 red bits and 5 blue bits past each other.
+        uint16_t* px = (uint16_t*)px_map;
+        for (uint32_t i = 0, n = w * h; i < n; i++) {
+            uint16_t c = px[i];
+            px[i] = (uint16_t)((c << 11) | (c & 0x07E0) | (c >> 11));
+        }
+    }
     tft.startWrite();
     tft.setAddrWindow(area->x1, area->y1, w, h);
     tft.pushColors((uint16_t*)px_map, w * h, true);
@@ -194,6 +212,7 @@ void setup() {
         pinMode(pin, OUTPUT);
         digitalWrite(pin, HIGH);
     }
+    pinMode(PIN_BOOT_BUTTON, INPUT_PULLUP);
     pinMode(XPT_CLK, OUTPUT);
     pinMode(XPT_MOSI, OUTPUT);
     pinMode(XPT_CS, OUTPUT);
@@ -210,6 +229,7 @@ void setup() {
     tft.setRotation(1);
     tft.fillScreen(TFT_BLACK);
     platform::set_color_inversion(s.invert);
+    swap_red_blue = s.swap_rb;
     ledcSetup(BACKLIGHT_CHANNEL, 5000, 8);
     ledcAttachPin(PIN_BACKLIGHT, BACKLIGHT_CHANNEL);
     platform::set_backlight(s.brightness);

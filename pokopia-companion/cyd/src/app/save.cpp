@@ -311,6 +311,8 @@ void load_settings() {
     settings_value.dark = s["dark"] | true;
     settings_value.brightness = s["brightness"] | 80;
     settings_value.invert = s["invert"] | false;
+    settings_value.swap_rb = s["swapRB"] | false;
+    settings_value.setup_done = s["setupDone"] | false;
     if (s["cal"].is<JsonArray>() && s["cal"].size() == 4) {
         for (int i = 0; i < 4; i++) settings_value.cal[i] = s["cal"][i] | settings_value.cal[i];
         settings_value.cal_set = true;
@@ -322,6 +324,8 @@ void write_settings() {
     s["dark"] = settings_value.dark;
     s["brightness"] = settings_value.brightness;
     s["invert"] = settings_value.invert;
+    s["swapRB"] = settings_value.swap_rb;
+    s["setupDone"] = settings_value.setup_done;
     if (settings_value.cal_set) {
         JsonArray cal = s["cal"].to<JsonArray>();
         for (int i = 0; i < 4; i++) cal.add(settings_value.cal[i]);

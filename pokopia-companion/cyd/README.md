@@ -10,7 +10,7 @@ Firmware that runs the Pokopia Companion guide on an **ESP32-2432S028R** ("Cheap
 - **Pokédex**: tap a status to mark Pokémon *Seen* or *Befriended*. Switch between the guide's list, your befriended Pokémon, and **All** 1,025 species (20 per page). Befriending a Pokémon flashes the board's LED green.
 - **Habitats**: recipes drawn as building blocks, the Pokémon each attracts, and a counter for copies built.
 - **Ditto's moves**, **Specialties**, **Areas** (with goal checklists), **Cooking & crafting**, **Field tips** and **Requests**.
-- **Settings**: dark or light theme, brightness, color inversion, touch calibration, and save codes.
+- **Settings**: dark or light theme, brightness, screen colors, touch calibration, and save codes.
 
 ### Moving progress between the CYD and your phone
 
@@ -28,7 +28,7 @@ The CYD uses the same **save code** as the phone and web app:
 | One micro-USB port (original CYD, ILI9341 screen) | `pokopia-companion-cyd-factory.bin` |
 | Two ports, USB-C and micro-USB ("CYD2USB", ST7789 screen) | `pokopia-companion-cyd2usb-factory.bin` |
 
-If you're not sure, try the first one. If the colors look like a photo negative, open Settings › *Invert colors*. If the screen stays white or garbled, flash the other file.
+If you're not sure, try the first one. If the screen stays white or garbled, flash the other file.
 
 ### 2. Flash it from your browser (no installs)
 
@@ -39,7 +39,16 @@ If you're not sure, try the first one. If the colors look like a photo negative,
 
 If Connect fails, hold the **BOOT** button while you click Connect. On Windows you may need the CH340 or CP210x USB driver.
 
-### 3. Optional: pictures for all 1,025 Pokémon
+### 3. First start: touch and color setup
+
+The first time the board starts, it walks you through two quick steps before Home:
+
+1. **Touch**: tap the center of a target in the top-left corner, then one in the bottom-right. A stylus or fingernail works best.
+2. **Colors**: four test boxes are labeled Red, Green, Blue and White. If they look like a photo negative, tap **Invert**. If red and blue are swapped, tap **Swap red/blue**. The screen changes right away. When the boxes match their labels, tap **Looks right**.
+
+To run setup again at any time, **hold the screen or the BOOT button while the board starts**. That's useful if taps land in the wrong place and you can't reach Settings. Both steps are also in Settings.
+
+### 4. Optional: pictures for all 1,025 Pokémon
 
 The firmware already has pictures of the guide's 55 built-in Pokémon. For every other Pokémon (the **All** list), copy the SD card pack to a FAT32 microSD card:
 

@@ -42,6 +42,8 @@ struct Progress {
 struct Settings {
     bool dark = true;
     bool invert = false;     // flips panel colours on boards that need it
+    bool swap_rb = false;    // swaps red and blue on panels wired BGR
+    bool setup_done = false; // first-boot touch and colour setup finished
     uint8_t brightness = 80;
     int16_t cal[4] = {200, 3700, 240, 3800};
     bool cal_set = false;

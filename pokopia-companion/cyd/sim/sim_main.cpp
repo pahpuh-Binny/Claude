@@ -5,7 +5,11 @@
 //
 //   tap X Y            press and release at a point
 //   drag X1 Y1 X2 Y2   press, move and release (scrolls lists)
+//   down X Y / up      press and hold, then release
+//   bootbutton 1|0     hold or release the BOOT button
 //   wait MS            let time pass
+//   cal                print the touch calibration
+//   dump               print the widget tree
 //   shot FILE.ppm      save the screen
 //
 // Usage: sim DATA_DIR < script.txt
@@ -33,6 +37,7 @@ static uint16_t framebuffer[W * H];
 static uint32_t now_ms = 0;
 static int32_t touch_x = 0, touch_y = 0;
 static bool touch_down = false;
+static bool sim_invert = false, sim_swap = false, sim_boot_button = false;
 static std::string data_dir = ".";
 
 // ---------------- platform ----------------
@@ -73,10 +78,17 @@ bool sd_write(const char* path, const std::string& data) {
 }
 
 void set_backlight(uint8_t percent) { printf("backlight %u%%\n", percent); }
-void set_color_inversion(bool on) { printf("invert %d\n", on); }
+void set_color_inversion(bool on) { sim_invert = on; }
+void set_color_swap(bool on) { sim_swap = on; }
+bool boot_button() { return sim_boot_button; }
 void led_flash(uint8_t r, uint8_t g, uint8_t b, uint16_t ms) { printf("led %u,%u,%u for %ums\n", r, g, b, ms); }
 
-bool touch_raw(int16_t*, int16_t*) { return false; }
+bool touch_raw(int16_t* x, int16_t* y) {
+    if (!touch_down) return false;
+    *x = (int16_t)(200 + touch_x * 3500 / 320);
+    *y = (int16_t)(240 + touch_y * 3560 / 240);
+    return true;
+}
 static int16_t cal_values[4] = {200, 3700, 240, 3800};
 void set_touch_calibration(const int16_t cal[4]) { memcpy(cal_values, cal, sizeof cal_values); }
 void get_touch_calibration(int16_t cal[4]) { memcpy(cal, cal_values, sizeof cal_values); }
@@ -128,6 +140,8 @@ static void screenshot(const char* path) {
     fprintf(f, "P6\n%d %d\n255\n", W, H);
     for (int i = 0; i < W * H; i++) {
         uint16_t c = framebuffer[i];
+        if (sim_swap) c = (uint16_t)((c << 11) | (c & 0x07E0) | (c >> 11));
+        if (sim_invert) c = (uint16_t)~c;  // what the panel shows when inverted
         uint8_t rgb[3] = {(uint8_t)(((c >> 11) & 0x1F) * 255 / 31), (uint8_t)(((c >> 5) & 0x3F) * 255 / 63),
                           (uint8_t)((c & 0x1F) * 255 / 31)};
         fwrite(rgb, 1, 3, f);
@@ -175,6 +189,18 @@ int main(int argc, char** argv) {
             run(600);
         } else if (sscanf(line, "wait %d", &a) == 1) {
             run(a);
+        } else if (sscanf(line, "down %d %d", &a, &b) == 2) {
+            touch_x = a; touch_y = b; touch_down = true;
+            run(40);
+        } else if (!strncmp(line, "up", 2)) {
+            touch_down = false;
+            run(250);
+        } else if (sscanf(line, "bootbutton %d", &a) == 1) {
+            sim_boot_button = a != 0;
+        } else if (!strncmp(line, "cal", 3)) {
+            int16_t cal[4];
+            platform::get_touch_calibration(cal);
+            printf("calibration %d %d %d %d\n", cal[0], cal[1], cal[2], cal[3]);
         } else if (!strncmp(line, "dump", 4)) {
             dump(lv_screen_active(), 0);
         } else if (sscanf(line, "%15s %199s", cmd, arg) == 2 && !strcmp(cmd, "shot")) {
