@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Appended to rk3568-anbernic-rg-ds.dts by scripts/build-kernel.sh.
+ *
+ * Mainline pins the USB-C controller to gadget-only ("peripheral") so the
+ * ttyGS0 serial console always works, because the board has no reachable
+ * UART. For Kali you want host mode too (USB Wi-Fi adapters, hubs,
+ * keyboards), so make the port dual-role and give the OTG PHY the RK817
+ * boost regulator so it can drive VBUS. Same change as Armbian's
+ * board-rgds-04-usb-otg-dual-role.patch (armbian/build PR #10124), which was
+ * tested on hardware with the gadget console still working when tethered.
+ */
+
+&usb_host0_xhci {
+	dr_mode = "otg";
+};
+
+&usb2phy0_otg {
+	phy-supply = <&otg_switch>;
+};

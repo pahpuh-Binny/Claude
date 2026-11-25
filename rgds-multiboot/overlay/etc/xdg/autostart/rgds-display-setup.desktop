@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=RG DS dual-screen setup
+Exec=/usr/local/bin/rgds-display-setup
+OnlyShowIn=XFCE;
+NoDisplay=true

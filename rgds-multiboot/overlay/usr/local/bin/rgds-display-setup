@@ -1,0 +1,76 @@
+#!/bin/bash
+# rgds-display-setup [--swap]
+#
+# Arrange the RG DS screens under X11 (top screen above the bottom one, like
+# a DS) and bind each Goodix touch panel to the screen it sits on. Runs from
+# LightDM before the login screen and again when an Xfce session starts.
+#
+#   --swap   the screens came out the wrong way round: swap TOP/BOTTOM in
+#            ~/.config/rgds/display.conf and apply again.
+set -uo pipefail
+
+TOP_OUTPUT=auto BOTTOM_OUTPUT=auto TOP_ROTATE=normal BOTTOM_ROTATE=normal
+LAYOUT=stacked TOP_TOUCH_BUS=3 BOTTOM_TOUCH_BUS=5
+USER_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/rgds/display.conf"
+# shellcheck source=/dev/null
+[[ -r /etc/rgds/display.conf ]] && . /etc/rgds/display.conf
+# shellcheck source=/dev/null
+[[ -r $USER_CONF ]] && . "$USER_CONF"
+
+command -v xrandr >/dev/null || exit 0
+[[ -n ${DISPLAY:-} ]] || export DISPLAY=:0
+
+mapfile -t outputs < <(xrandr --query 2>/dev/null | awk '$2 == "connected" { print $1 }' | sort -V)
+mapfile -t dsi < <(printf '%s\n' "${outputs[@]}" | grep -i '^DSI' || true)
+((${#dsi[@]})) || dsi=("${outputs[@]}")
+
+[[ $BOTTOM_OUTPUT == auto ]] && BOTTOM_OUTPUT=${dsi[0]:-}
+[[ $TOP_OUTPUT == auto ]] && TOP_OUTPUT=${dsi[1]:-}
+
+if [[ ${1:-} == --swap ]]; then
+  mkdir -p "$(dirname "$USER_CONF")"
+  touch "$USER_CONF"
+  sed -i '/^TOP_OUTPUT=/d; /^BOTTOM_OUTPUT=/d' "$USER_CONF"
+  printf 'TOP_OUTPUT=%s\nBOTTOM_OUTPUT=%s\n' "$BOTTOM_OUTPUT" "$TOP_OUTPUT" >> "$USER_CONF"
+  tmp=$TOP_OUTPUT; TOP_OUTPUT=$BOTTOM_OUTPUT; BOTTOM_OUTPUT=$tmp
+fi
+
+if [[ -z $BOTTOM_OUTPUT ]]; then
+  echo "rgds-display-setup: no connected outputs" >&2
+  exit 0
+fi
+
+if [[ -z $TOP_OUTPUT || $TOP_OUTPUT == "$BOTTOM_OUTPUT" ]]; then
+  xrandr --output "$BOTTOM_OUTPUT" --auto --rotate "$BOTTOM_ROTATE" --primary
+  TOP_OUTPUT=$BOTTOM_OUTPUT
+else
+  case $LAYOUT in
+    mirror)
+      xrandr --output "$BOTTOM_OUTPUT" --auto --rotate "$BOTTOM_ROTATE" --primary --pos 0x0 \
+             --output "$TOP_OUTPUT" --auto --rotate "$TOP_ROTATE" --same-as "$BOTTOM_OUTPUT" ;;
+    bottom-only)
+      xrandr --output "$BOTTOM_OUTPUT" --auto --rotate "$BOTTOM_ROTATE" --primary --output "$TOP_OUTPUT" --off ;;
+    top-only)
+      xrandr --output "$TOP_OUTPUT" --auto --rotate "$TOP_ROTATE" --primary --output "$BOTTOM_OUTPUT" --off ;;
+    *)
+      xrandr --output "$TOP_OUTPUT" --auto --rotate "$TOP_ROTATE" --pos 0x0 \
+             --output "$BOTTOM_OUTPUT" --auto --rotate "$BOTTOM_ROTATE" --below "$TOP_OUTPUT" --primary ;;
+  esac
+fi
+
+# Both touch panels report the same name, so tell them apart by I2C bus:
+# the input device lives under .../i2c-N/N-0014/ in sysfs.
+command -v xinput >/dev/null || exit 0
+for id in $(xinput list --id-only 2>/dev/null); do
+  name=$(xinput list --name-only "$id" 2>/dev/null) || continue
+  [[ $name == *[Gg]oodix* ]] || continue
+  node=$(xinput list-props "$id" 2>/dev/null | sed -n 's/.*Device Node ([0-9]*):[[:space:]]*"\(.*\)".*/\1/p')
+  [[ -n $node ]] || continue
+  path=$(readlink -f "/sys/class/input/$(basename "$node")/device" 2>/dev/null)
+  if [[ $path == */"$TOP_TOUCH_BUS"-00[0-9a-f][0-9a-f]/* ]]; then
+    xinput map-to-output "$id" "$TOP_OUTPUT"
+  elif [[ $path == */"$BOTTOM_TOUCH_BUS"-00[0-9a-f][0-9a-f]/* ]]; then
+    xinput map-to-output "$id" "$BOTTOM_OUTPUT"
+  fi
+done
+exit 0

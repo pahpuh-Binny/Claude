@@ -1,0 +1,101 @@
+#!/bin/bash
+# rgds-sd-setup: boot-time upkeep for the RG DS multiboot card (Kali side).
+#
+#  1. Create SSH host keys if the image shipped without them.
+#  2. Grow the physically last partition into unused card space:
+#     - Kali's own root (Kali-only card): grown online.
+#     - ROCKNIX's STORAGE (triple-boot card): grown while unmounted.
+#  3. Make sure ROCKNIX has "Switch to Kali" / "Shut down for Android" entries
+#     in its Ports menu.
+#
+# Every step checks first, so running it on every boot is cheap and safe.
+set -uo pipefail
+
+PORTS_SRC=/usr/share/rgds-multiboot/rocknix-ports
+MIN_GROW_SECTORS=$((256 * 1024 * 1024 / 512))
+log() { echo "rgds-sd-setup: $*"; }
+
+if [[ -f /etc/ssh/sshd_config ]] && ! compgen -G '/etc/ssh/ssh_host_*_key' >/dev/null; then
+  log "generating SSH host keys"
+  ssh-keygen -A
+fi
+
+root_src=$(findmnt -no SOURCE /)
+pk=$(lsblk -no PKNAME "$root_src" 2>/dev/null | head -n 1)
+[[ -n $pk ]] || { log "root is not on a partitioned disk; nothing to do"; exit 0; }
+disk=/dev/$pk
+
+grow() {  # grow <partition node> <partition number> <online|offline>
+  local node=$1 num=$2 mode=$3 rc
+  log "growing $node to fill the card"
+  sfdisk --no-reread --relocate gpt-bak-std "$disk" >/dev/null 2>&1 || true
+  if command -v growpart >/dev/null; then
+    growpart "$disk" "$num" || return 1
+  else
+    echo ", +" | sfdisk --no-reread -N "$num" "$disk" >/dev/null || return 1
+    partx -u -n "$num" "$disk" || true
+  fi
+  if [[ $mode == offline ]]; then
+    e2fsck -f -p "$node"; rc=$?
+    ((rc < 4)) || { log "e2fsck reported errors on $node; not resizing"; return 1; }
+  fi
+  resize2fs "$node"
+}
+
+# Physically last partition (numbers need not follow disk order).
+read -r last_node last_start last_size < <(sfdisk -J "$disk" | python3 -c '
+import json, sys
+parts = json.load(sys.stdin)["partitiontable"].get("partitions", [])
+if parts:
+    p = max(parts, key=lambda p: p["start"])
+    print(p["node"], p["start"], p["size"])
+') || true
+
+if [[ -n ${last_node:-} ]]; then
+  total=$(blockdev --getsz "$disk")
+  free=$((total - 34 - last_start - last_size))
+  num=${last_node##*[!0-9]}
+  label=$(blkid -s LABEL -o value "$last_node" 2>/dev/null || true)
+  if ((free > MIN_GROW_SECTORS)); then
+    if [[ $last_node == "$root_src" ]]; then
+      grow "$last_node" "$num" online
+    elif [[ $label == STORAGE ]] && ! findmnt -rn -S "$last_node" >/dev/null; then
+      tmpm=$(mktemp -d)
+      flagged=0
+      if mount -o ro "$last_node" "$tmpm" 2>/dev/null; then
+        [[ -e $tmpm/.please_resize_me ]] && flagged=1
+        umount "$tmpm"
+      fi
+      rmdir "$tmpm"
+      if ((flagged)); then
+        log "ROCKNIX will size its STORAGE partition itself on first boot"
+      else
+        grow "$last_node" "$num" offline
+      fi
+    fi
+  fi
+fi
+
+# ROCKNIX Ports entries, once ROCKNIX's STORAGE exists on this card.
+storage=""
+while read -r dev lbl; do
+  [[ $lbl == STORAGE && $(lsblk -no PKNAME "$dev" 2>/dev/null) == "$pk" ]] && storage=$dev
+done < <(lsblk -rno PATH,LABEL "$disk" 2>/dev/null)
+if [[ -n $storage && -d $PORTS_SRC ]] && ! findmnt -rn -S "$storage" >/dev/null; then
+  mnt=/run/rgds-storage
+  mkdir -p "$mnt"
+  if mount "$storage" "$mnt"; then
+    if [[ ! -e $mnt/.please_resize_me ]]; then
+      mkdir -p "$mnt/roms/ports"
+      for f in "$PORTS_SRC"/*.sh; do
+        dest="$mnt/roms/ports/$(basename "$f")"
+        if [[ ! -f $dest ]] || ! cmp -s "$f" "$dest"; then
+          install -m 0755 "$f" "$dest"
+          log "added ROCKNIX port: $(basename "$f")"
+        fi
+      done
+    fi
+    umount "$mnt"
+  fi
+fi
+exit 0

@@ -1,0 +1,4 @@
+#!/bin/sh
+# initramfs-tools calls this after it rebuilds an initrd ($1 = kernel version).
+/usr/local/sbin/rgds-kernel-sync "$1" || echo "rgds-multiboot: kept the previous initrd on the boot partition" >&2
+exit 0

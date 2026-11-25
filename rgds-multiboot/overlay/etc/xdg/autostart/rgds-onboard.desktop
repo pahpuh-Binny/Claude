@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=On-screen keyboard (RG DS)
+Exec=onboard
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-enabled=true
+NoDisplay=true

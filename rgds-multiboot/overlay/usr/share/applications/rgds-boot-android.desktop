@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Shut down for Android
+Comment=Power off so you can remove the microSD card and start Android
+Exec=pkexec /usr/local/sbin/rgds-switch-os android
+Icon=system-shutdown
+Terminal=false
+Categories=System;

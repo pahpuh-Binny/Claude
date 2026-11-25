@@ -1,0 +1,12 @@
+[Unit]
+Description=RG DS microSD upkeep (grow partitions, ROCKNIX switch entries, SSH keys)
+After=local-fs.target
+Before=ssh.service display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/rgds-sd-setup
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

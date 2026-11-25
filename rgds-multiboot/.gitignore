@@ -1,0 +1,6 @@
+/out/
+*.img
+*.img.gz
+*.img.xz
+android-preflight-*.txt
+__pycache__/

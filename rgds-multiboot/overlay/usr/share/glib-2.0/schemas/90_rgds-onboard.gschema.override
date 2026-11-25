@@ -1,0 +1,11 @@
+# On-screen keyboard defaults for a touch handheld: stay out of the way until
+# a text field is focused, and keep a small icon to tap it open by hand.
+[org.onboard]
+start-minimized=true
+show-status-icon=true
+
+[org.onboard.auto-show]
+enabled=true
+
+[org.onboard.icon-palette]
+in-use=true

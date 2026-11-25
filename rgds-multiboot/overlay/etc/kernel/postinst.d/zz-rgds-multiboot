@@ -1,0 +1,5 @@
+#!/bin/sh
+# Copy a newly installed kernel to the RG DS boot partition. Never fail the
+# package install over it: the previous kernel stays in place if this does.
+/usr/local/sbin/rgds-kernel-sync "$1" || echo "rgds-multiboot: kept the previous kernel on the boot partition" >&2
+exit 0

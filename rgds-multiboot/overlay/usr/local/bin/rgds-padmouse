@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""rgds-padmouse: use the RG DS controls as a mouse and keyboard on Kali.
+
+Left stick moves the pointer, right stick scrolls, and buttons send mouse
+clicks or keys (see /etc/rgds/padmouse.conf). Press HOME to turn it off when
+a program reads the gamepad itself, and again to turn it back on.
+
+Runs as a system service so it also works at the login screen. It reads the
+built-in input devices with python3-evdev and writes to a virtual uinput
+device; it never grabs the real devices.
+"""
+
+import configparser
+import os
+import select
+import sys
+import time
+
+CONFIG_PATH = os.environ.get("RGDS_PADMOUSE_CONF", "/etc/rgds/padmouse.conf")
+VIRTUAL_NAME = "rgds-padmouse"
+TICK = 0.01  # seconds between pointer updates (100 Hz)
+RESCAN = 5.0  # seconds between looks for input devices that appeared late
+
+DEFAULTS = {
+    "toggle": "BTN_MODE",
+    "enabled_at_start": "yes",
+    "pointer_speed": "900",
+    "scroll_speed": "14",
+    "deadzone": "0.12",
+    "curve": "2.0",
+    "pointer_axes": "ABS_X ABS_Y",
+    "scroll_axes": "ABS_RX ABS_RY",
+    "invert_pointer_x": "no",
+    "invert_pointer_y": "no",
+    "invert_scroll_y": "yes",
+}
+
+DEFAULT_BUTTONS = {
+    "BTN_EAST": "BTN_LEFT",
+    "BTN_SOUTH": "BTN_RIGHT",
+    "BTN_NORTH": "BTN_MIDDLE",
+    "BTN_WEST": "KEY_SPACE",
+    "BTN_START": "KEY_ENTER",
+    "BTN_SELECT": "KEY_ESC",
+    "BTN_TL": "KEY_BACKSPACE",
+    "BTN_TR": "KEY_TAB",
+    "BTN_TL2": "KEY_LEFTCTRL",
+    "BTN_TR2": "KEY_LEFTSHIFT",
+    "BTN_THUMBL": "KEY_LEFTALT",
+    "BTN_THUMBR": "KEY_LEFTMETA",
+    "BTN_DPAD_UP": "KEY_UP",
+    "BTN_DPAD_DOWN": "KEY_DOWN",
+    "BTN_DPAD_LEFT": "KEY_LEFT",
+    "BTN_DPAD_RIGHT": "KEY_RIGHT",
+}
+
+
+# ---- pure helpers (unit-tested without hardware) ---------------------------
+
+def normalize(value, lo, hi):
+    """Map a raw axis reading onto -1.0..1.0 around the middle of its range."""
+    if hi < lo:  # axis declared with an inverted range
+        return -normalize(value, hi, lo)
+    if hi == lo:
+        return 0.0
+    mid = (lo + hi) / 2.0
+    half = (hi - lo) / 2.0
+    return max(-1.0, min(1.0, (value - mid) / half))
+
+
+def shape(x, deadzone, curve):
+    """Apply a dead zone and a response curve; keeps the sign of x."""
+    mag = abs(x)
+    if mag <= deadzone:
+        return 0.0
+    scaled = (mag - deadzone) / (1.0 - deadzone)
+    out = scaled ** curve
+    return out if x > 0 else -out
+
+
+class Accumulator:
+    """Turns fractional per-tick movement into whole relative events."""
+
+    def __init__(self):
+        self.rest = 0.0
+
+    def step(self, amount):
+        self.rest += amount
+        whole = int(self.rest)
+        self.rest -= whole
+        return whole
+
+
+def load_config(path=CONFIG_PATH):
+    cp = configparser.ConfigParser()
+    cp.optionxform = str  # keep BTN_/KEY_ names upper-case
+    cp["padmouse"] = DEFAULTS
+    cp["buttons"] = DEFAULT_BUTTONS
+    if os.path.exists(path):
+        # A [buttons] section in the file replaces the default map entirely.
+        file_cp = configparser.ConfigParser()
+        file_cp.optionxform = str
+        file_cp.read(path)
+        if file_cp.has_section("buttons"):
+            cp.remove_section("buttons")
+            cp.add_section("buttons")
+        cp.read(path)
+    return cp
+
+
+def resolve_buttons(section, ecodes):
+    """Map config names to evdev codes, skipping names this kernel lacks."""
+    mapping, unknown = {}, []
+    for src, dst in section.items():
+        s = getattr(ecodes, src.strip(), None)
+        d = getattr(ecodes, dst.strip(), None)
+        if s is None or d is None:
+            unknown.append(f"{src} = {dst}")
+            continue
+        mapping[s] = d
+    return mapping, unknown
+
+
+# ---- device handling -------------------------------------------------------
+
+def is_source(dev, ecodes, wanted_keys, wanted_abs):
+    if dev.name == VIRTUAL_NAME:
+        return False
+    caps = dev.capabilities()
+    abs_codes = {c[0] if isinstance(c, tuple) else c for c in caps.get(ecodes.EV_ABS, [])}
+    if ecodes.ABS_MT_POSITION_X in abs_codes:
+        return False  # touchscreen
+    keys = set(caps.get(ecodes.EV_KEY, []))
+    return bool(keys & wanted_keys) or bool(abs_codes & wanted_abs)
+
+
+def main():
+    try:
+        import evdev
+        from evdev import UInput, ecodes
+    except ImportError:
+        sys.exit("rgds-padmouse needs python3-evdev")
+
+    cfg = load_config()
+    opt = cfg["padmouse"]
+    buttons, unknown = resolve_buttons(cfg["buttons"], ecodes)
+    for u in unknown:
+        print(f"rgds-padmouse: ignoring unknown mapping {u}", file=sys.stderr)
+    toggle = getattr(ecodes, opt["toggle"], ecodes.BTN_MODE)
+    px, py = (getattr(ecodes, n) for n in opt["pointer_axes"].split())
+    sx, sy = (getattr(ecodes, n) for n in opt["scroll_axes"].split())
+    speed = float(opt["pointer_speed"]) * TICK
+    scroll = float(opt["scroll_speed"]) * TICK
+    dz, curve = float(opt["deadzone"]), float(opt["curve"])
+    inv = {
+        px: -1 if opt.getboolean("invert_pointer_x") else 1,
+        py: -1 if opt.getboolean("invert_pointer_y") else 1,
+        sy: -1 if opt.getboolean("invert_scroll_y") else 1,
+        sx: 1,
+    }
+    enabled = opt.getboolean("enabled_at_start")
+
+    out_keys = sorted(set(buttons.values()) | {ecodes.BTN_LEFT, ecodes.BTN_RIGHT, ecodes.BTN_MIDDLE})
+    ui = UInput({ecodes.EV_KEY: out_keys,
+                 ecodes.EV_REL: [ecodes.REL_X, ecodes.REL_Y, ecodes.REL_WHEEL, ecodes.REL_HWHEEL]},
+                name=VIRTUAL_NAME)
+
+    wanted_keys = set(buttons) | {toggle}
+    wanted_abs = {px, py, sx, sy}
+    devices, ranges, axes = {}, {}, {px: 0.0, py: 0.0, sx: 0.0, sy: 0.0}
+    held = set()
+    acc = {k: Accumulator() for k in ("x", "y", "w", "h")}
+    last_scan = 0.0
+
+    def scan():
+        for path in evdev.list_devices():
+            if any(d.path == path for d in devices.values()):
+                continue
+            try:
+                dev = evdev.InputDevice(path)
+            except OSError:
+                continue
+            if not is_source(dev, ecodes, wanted_keys, wanted_abs):
+                dev.close()
+                continue
+            devices[dev.fd] = dev
+            for code, info in dev.capabilities().get(ecodes.EV_ABS, []):
+                if code in axes:
+                    ranges[code] = (info.min, info.max)
+            print(f"rgds-padmouse: using {dev.path} ({dev.name})", file=sys.stderr)
+
+    def release_all():
+        for code in list(held):
+            ui.write(ecodes.EV_KEY, code, 0)
+        held.clear()
+        ui.syn()
+
+    print(f"rgds-padmouse: started, mouse mode {'on' if enabled else 'off'}", file=sys.stderr)
+    while True:
+        now = time.monotonic()
+        if now - last_scan > RESCAN:
+            scan()
+            last_scan = now
+        ready, _, _ = select.select(list(devices), [], [], TICK)
+        for fd in ready:
+            dev = devices[fd]
+            try:
+                events = list(dev.read())
+            except OSError:
+                devices.pop(fd, None)
+                continue
+            for ev in events:
+                if ev.type == ecodes.EV_KEY and ev.code == toggle and ev.value == 1:
+                    enabled = not enabled
+                    release_all()
+                    print(f"rgds-padmouse: mouse mode {'on' if enabled else 'off'}", file=sys.stderr)
+                elif ev.type == ecodes.EV_KEY and enabled and ev.code in buttons and ev.value in (0, 1):
+                    out = buttons[ev.code]
+                    ui.write(ecodes.EV_KEY, out, ev.value)
+                    (held.add if ev.value else held.discard)(out)
+                    ui.syn()
+                elif ev.type == ecodes.EV_ABS and ev.code in axes:
+                    lo, hi = ranges.get(ev.code, (0, 4095))
+                    axes[ev.code] = normalize(ev.value, lo, hi) * inv[ev.code]
+        if not enabled:
+            continue
+        dx = acc["x"].step(shape(axes[px], dz, curve) * speed)
+        dy = acc["y"].step(shape(axes[py], dz, curve) * speed)
+        dw = acc["w"].step(shape(axes[sy], dz, curve) * scroll)
+        dh = acc["h"].step(shape(axes[sx], dz, curve) * scroll)
+        if dx or dy or dw or dh:
+            if dx:
+                ui.write(ecodes.EV_REL, ecodes.REL_X, dx)
+            if dy:
+                ui.write(ecodes.EV_REL, ecodes.REL_Y, dy)
+            if dw:
+                ui.write(ecodes.EV_REL, ecodes.REL_WHEEL, dw)
+            if dh:
+                ui.write(ecodes.EV_REL, ecodes.REL_HWHEEL, dh)
+            ui.syn()
+
+
+if __name__ == "__main__":
+    main()

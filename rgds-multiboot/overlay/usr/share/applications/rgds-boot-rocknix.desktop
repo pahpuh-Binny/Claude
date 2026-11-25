@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Reboot into ROCKNIX
+Comment=Make ROCKNIX the default OS on this card and reboot
+Exec=pkexec /usr/local/sbin/rgds-switch-os rocknix
+Icon=system-reboot
+Terminal=false
+Categories=System;

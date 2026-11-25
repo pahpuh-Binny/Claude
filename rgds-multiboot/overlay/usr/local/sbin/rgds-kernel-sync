@@ -1,0 +1,70 @@
+#!/bin/bash
+# rgds-kernel-sync [VERSION]
+#
+# Copy a kernel (newest installed by default), its initramfs and the RG DS
+# device tree to where U-Boot loads them: the shared FAT boot partition,
+# directory /kali. Called from the kernel and initramfs-tools hooks, so
+# `apt upgrade` keeps the card bootable. A copy is staged in /boot/rgds,
+# which make-sd-image.sh reads when it builds a card.
+#
+# RGDS_ROOTFS (default /) lets the image builder run this on a rootfs tree.
+set -euo pipefail
+
+ROOT=${RGDS_ROOTFS:-}
+ROOT=${ROOT%/}
+DTB_NAME=rk3568-anbernic-rg-ds.dtb
+STAGE="$ROOT/boot/rgds"
+BOOT_MNT=${RGDS_BOOT_DIR:-$ROOT/boot/rgds-multiboot}
+
+ver=${1:-}
+if [[ -z $ver ]]; then
+  ver=$(find "$ROOT/boot" -maxdepth 1 -name 'vmlinuz-*' -printf '%f\n' 2>/dev/null \
+        | sed 's/^vmlinuz-//' | sort -V | tail -n 1)
+fi
+[[ -n $ver ]] || { echo "rgds-kernel-sync: no kernel in $ROOT/boot" >&2; exit 1; }
+
+kernel="$ROOT/boot/vmlinuz-$ver"
+initrd="$ROOT/boot/initrd.img-$ver"
+[[ -f $kernel ]] || { echo "rgds-kernel-sync: $kernel not found" >&2; exit 1; }
+
+dtb=""
+for cand in "$ROOT/usr/lib/linux-image-$ver/rockchip/$DTB_NAME" \
+            "$ROOT/usr/lib/linux-image-$ver/$DTB_NAME" \
+            "$ROOT/boot/dtbs/$ver/rockchip/$DTB_NAME" \
+            "$ROOT/boot/dtb-$ver"; do
+  if [[ -f $cand ]]; then dtb=$cand; break; fi
+done
+[[ -n $dtb ]] || { echo "rgds-kernel-sync: kernel $ver ships no $DTB_NAME; not switching to it" >&2; exit 1; }
+
+mkdir -p "$STAGE"
+# U-Boot's booti wants an uncompressed arm64 Image; Debian packages gzip it.
+if gzip -t "$kernel" 2>/dev/null; then
+  gzip -dc "$kernel" > "$STAGE/Image.new"
+else
+  cp "$kernel" "$STAGE/Image.new"
+fi
+cp "$dtb" "$STAGE/$DTB_NAME.new"
+mv "$STAGE/Image.new" "$STAGE/Image"
+mv "$STAGE/$DTB_NAME.new" "$STAGE/$DTB_NAME"
+if [[ -f $initrd ]]; then
+  cp "$initrd" "$STAGE/initrd.img.new"
+  mv "$STAGE/initrd.img.new" "$STAGE/initrd.img"
+elif [[ ! -f $STAGE/initrd.img ]]; then
+  echo "rgds-kernel-sync: warning: no initramfs for $ver yet" >&2
+fi
+echo "$ver" > "$STAGE/version"
+
+if [[ -f $BOOT_MNT/extlinux/extlinux.conf ]]; then
+  dest="$BOOT_MNT/kali"
+  mkdir -p "$dest"
+  for f in Image initrd.img "$DTB_NAME" version; do
+    [[ -f $STAGE/$f ]] || continue
+    cp "$STAGE/$f" "$dest/$f.new"
+    sync "$dest/$f.new" 2>/dev/null || sync
+    mv "$dest/$f.new" "$dest/$f"
+  done
+  sync
+  echo "rgds-kernel-sync: kernel $ver installed to the boot partition"
+else
+  echo "rgds-kernel-sync: kernel $ver staged in $STAGE (boot partition not mounted)"
+fi
