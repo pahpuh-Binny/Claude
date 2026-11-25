@@ -1,0 +1,42 @@
+name: Family Frame firmware
+
+on:
+  push:
+    paths:
+      - "family-frame/**"
+      - ".github/workflows/family-frame.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-family-frame-${{ hashFiles('family-frame/platformio.ini') }}
+
+      - name: Feed reader and text tests
+        working-directory: family-frame/test
+        run: make
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build firmware (original CYD and two-port CYD)
+        working-directory: family-frame
+        run: pio run -e cyd -e cyd2usb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FamilyFrame-firmware
+          path: |
+            family-frame/.pio/build/*/family-frame-*-factory.bin
+            family-frame/.pio/build/*/family-frame-*-update.bin
+          if-no-files-found: error

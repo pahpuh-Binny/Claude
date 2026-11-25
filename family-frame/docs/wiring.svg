@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 470" font-family="Helvetica, Arial, sans-serif" font-size="13">
+  <rect width="820" height="470" fill="#ffffff"/>
+  <text x="20" y="26" font-size="18" font-weight="bold" fill="#1f2633">Family Frame wiring: INMP441 microphone + speaker</text>
+
+  <!-- CYD -->
+  <rect x="30" y="50" width="330" height="390" rx="14" fill="#f2d14b" stroke="#a88a12" stroke-width="2"/>
+  <text x="50" y="80" font-size="16" font-weight="bold" fill="#3b3000">CYD (ESP32-2432S028R)</text>
+  <text x="50" y="100" fill="#3b3000">back of the board</text>
+  <text x="50" y="190" fill="#5a4a00">Use the small 1.25 mm</text>
+  <text x="50" y="207" fill="#5a4a00">plug-in cables. No soldering</text>
+  <text x="50" y="224" fill="#5a4a00">on the CYD itself.</text>
+  <text x="50" y="320" fill="#5a4a00">Pin order differs between</text>
+  <text x="50" y="337" fill="#5a4a00">board versions: always read</text>
+  <text x="50" y="354" fill="#5a4a00">the labels printed by each</text>
+  <text x="50" y="371" fill="#5a4a00">connector.</text>
+
+  <!-- CN1 -->
+  <rect x="290" y="90" width="70" height="76" rx="4" fill="#ffffff" stroke="#555"/>
+  <text x="250" y="132" font-weight="bold" fill="#3b3000">CN1</text>
+  <g font-size="12" fill="#1f2633">
+    <text x="296" y="104">GND</text><text x="296" y="122">IO22</text><text x="296" y="140">IO27</text><text x="296" y="158">3.3V</text>
+  </g>
+  <!-- P3 -->
+  <rect x="290" y="220" width="70" height="76" rx="4" fill="#ffffff" stroke="#555"/>
+  <text x="258" y="262" font-weight="bold" fill="#3b3000">P3</text>
+  <g font-size="12" fill="#1f2633">
+    <text x="296" y="234">GND</text><text x="296" y="252">IO35</text><text x="296" y="270">IO22</text><text x="296" y="288" fill="#999">IO21</text>
+  </g>
+  <!-- SPEAK -->
+  <rect x="290" y="352" width="70" height="40" rx="4" fill="#ffffff" stroke="#555"/>
+  <text x="230" y="377" font-weight="bold" fill="#3b3000">SPEAK</text>
+  <g font-size="12" fill="#1f2633"><text x="296" y="366">+</text><text x="296" y="384">-</text></g>
+
+  <!-- wires CN1 -> mic -->
+  <g fill="none" stroke-width="4" stroke-linejoin="round">
+    <polyline points="360,100 420,100 420,110 560,110" stroke="#222"/>
+    <polyline points="360,118 440,118 440,140 560,140" stroke="#2f6fde"/>
+    <polyline points="360,136 460,136 460,170 560,170" stroke="#1f9d55"/>
+    <polyline points="360,154 480,154 480,200 560,200" stroke="#d63a3a"/>
+    <polyline points="360,248 500,248 500,260 560,260" stroke="#ef8a17"/>
+    <polyline points="360,362 600,362 600,375 640,375" stroke="#8a4fd1"/>
+    <polyline points="360,380 590,380 590,395 640,395" stroke="#8a4fd1"/>
+  </g>
+
+  <!-- INMP441 -->
+  <rect x="560" y="80" width="230" height="220" rx="12" fill="#1d3b6e" stroke="#0f2445" stroke-width="2"/>
+  <text x="640" y="104" font-size="15" font-weight="bold" fill="#fff">INMP441</text>
+  <text x="640" y="122" font-size="12" fill="#c9d6ee">I2S microphone</text>
+  <g font-size="13" fill="#fff" font-weight="bold">
+    <text x="572" y="115">GND</text><text x="572" y="145">SCK</text><text x="572" y="175">WS</text><text x="572" y="205">VDD</text>
+    <text x="572" y="235">L/R</text><text x="572" y="265">SD</text>
+  </g>
+  <polyline points="606,231 625,231 625,111 608,111" fill="none" stroke="#bbb" stroke-width="3" stroke-dasharray="6 4"/>
+  <text x="634" y="226" font-size="12" fill="#ffd27a">L/R to GND on the mic board</text>
+  <text x="634" y="242" font-size="12" fill="#ffd27a">(a short wire or solder blob)</text>
+  <circle cx="740" cy="160" r="9" fill="#0b1830" stroke="#8aa4cf"/>
+  <text x="700" y="186" font-size="11" fill="#c9d6ee">sound hole</text>
+  <text x="572" y="290" font-size="11" fill="#c9d6ee">Face the hole toward the room</text>
+
+  <!-- speaker -->
+  <circle cx="690" cy="385" r="48" fill="#333" stroke="#111" stroke-width="2"/>
+  <circle cx="690" cy="385" r="28" fill="#555"/>
+  <circle cx="690" cy="385" r="10" fill="#777"/>
+  <text x="652" y="452" fill="#1f2633" font-weight="bold">8 ohm speaker</text>
+  <text x="380" y="420" font-size="12" fill="#8a4fd1">either way round</text>
+</svg>
