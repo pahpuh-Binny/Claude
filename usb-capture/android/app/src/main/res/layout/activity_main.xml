@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black"
+    android:keepScreenOn="true">
+
+    <SurfaceView
+        android:id="@+id/video"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <io.github.pahpuhbinny.usbcapture.ui.OverlayView
+        android:id="@+id/overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <View
+        android:id="@+id/touch"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/video_area" />
+
+    <LinearLayout
+        android:id="@+id/status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_margin="24dp"
+        android:background="@drawable/bg_card"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingHorizontal="28dp"
+        android:paddingVertical="24dp">
+
+        <ImageView
+            android:id="@+id/statusIcon"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_usb"
+            app:tint="@color/accent" />
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/statusProgress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/statusTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center"
+            android:maxWidth="400dp"
+            android:textAppearance="?attr/textAppearanceTitleLarge"
+            android:textColor="@android:color/white" />
+
+        <TextView
+            android:id="@+id/statusDetail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:maxWidth="400dp"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="#CCFFFFFF" />
+
+        <LinearLayout
+            android:id="@+id/statusButtons"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:orientation="horizontal" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/stats"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="72dp"
+        android:background="@drawable/bg_stats"
+        android:fontFamily="monospace"
+        android:padding="8dp"
+        android:textColor="#F2FFFFFF"
+        android:textSize="11sp"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/recBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_rec"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:background="@drawable/dot_red" />
+
+        <TextView
+            android:id="@+id/recTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:fontFamily="monospace"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="@drawable/bg_top"
+        android:gravity="center_vertical"
+        android:minHeight="64dp"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/app_name"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textColor="@android:color/white" />
+
+            <TextView
+                android:id="@+id/subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="#CCFFFFFF" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnMode"
+            style="@style/Widget.Material3.Button.TonalButton.Icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
+            android:text="@string/play_mode"
+            app:icon="@drawable/ic_gamepad" />
+
+        <ImageButton
+            android:id="@+id/btnLog"
+            style="@style/BarButton"
+            android:contentDescription="@string/logs"
+            android:src="@drawable/ic_log" />
+
+        <ImageButton
+            android:id="@+id/btnSettings"
+            style="@style/BarButton"
+            android:contentDescription="@string/settings"
+            android:src="@drawable/ic_tune" />
+    </LinearLayout>
+
+    <HorizontalScrollView
+        android:id="@+id/bottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_bottom"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp"
+            android:paddingTop="20dp"
+            android:paddingBottom="10dp">
+
+            <ImageButton
+                android:id="@+id/btnShot"
+                style="@style/BarButton.Big"
+                android:contentDescription="@string/screenshot"
+                android:src="@drawable/ic_camera" />
+
+            <ImageButton
+                android:id="@+id/btnRecord"
+                style="@style/BarButton.Big"
+                android:contentDescription="@string/record"
+                android:src="@drawable/ic_record" />
+
+            <ImageButton
+                android:id="@+id/btnReplay"
+                style="@style/BarButton.Big"
+                android:contentDescription="@string/save_replay"
+                android:src="@drawable/ic_replay"
+                android:visibility="gone" />
+
+            <ImageButton
+                android:id="@+id/btnMute"
+                style="@style/BarButton.Big"
+                android:contentDescription="@string/sound"
+                android:src="@drawable/ic_volume" />
+
+            <ImageButton
+                android:id="@+id/btnMic"
+                style="@style/BarButton.Big"
+                android:contentDescription="@string/mic"
+                android:src="@drawable/ic_mic"
+                android:visibility="gone" />
+
+            <ImageButton
+                android:id="@+id/btnScale"
+                style="@style/BarButton.Big"
+                android:contentDescription="@string/scale"
+                android:src="@drawable/ic_aspect" />
+
+            <ImageButton
+                android:id="@+id/btnFullscreen"
+                style="@style/BarButton.Big"
+                android:contentDescription="@string/fullscreen"
+                android:src="@drawable/ic_fullscreen" />
+
+            <ImageButton
+                android:id="@+id/btnLock"
+                style="@style/BarButton.Big"
+                android:contentDescription="@string/lock"
+                android:src="@drawable/ic_lock" />
+
+            <ImageButton
+                android:id="@+id/btnPip"
+                style="@style/BarButton.Big"
+                android:contentDescription="@string/pip"
+                android:src="@drawable/ic_pip" />
+
+            <ImageButton
+                android:id="@+id/btnQuick"
+                style="@style/BarButton.Big"
+                android:contentDescription="@string/settings"
+                android:src="@drawable/ic_tune" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <FrameLayout
+        android:id="@+id/panel"
+        android:layout_width="380dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:background="@drawable/bg_panel"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/panelInner"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="16dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="4dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/expert_controls"
+                    android:textAppearance="?attr/textAppearanceTitleMedium"
+                    android:textColor="@android:color/white" />
+
+                <ImageButton
+                    android:id="@+id/btnPanelClose"
+                    style="@style/BarButton"
+                    android:contentDescription="@string/close"
+                    android:src="@drawable/ic_close" />
+            </LinearLayout>
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none">
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/panelTabs"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="12dp"
+                    app:selectionRequired="true"
+                    app:singleLine="true"
+                    app:singleSelection="true" />
+            </HorizontalScrollView>
+
+            <ScrollView
+                android:id="@+id/panelScroll"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:fadeScrollbars="true">
+
+                <LinearLayout
+                    android:id="@+id/panelContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="16dp"
+                    android:paddingBottom="16dp" />
+            </ScrollView>
+        </LinearLayout>
+    </FrameLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnUnlock"
+        style="@style/Widget.Material3.Button.TonalButton.Icon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="32dp"
+        android:text="@string/hold_to_unlock"
+        android:visibility="gone"
+        app:icon="@drawable/ic_lock_open" />
+
+    <TextView
+        android:id="@+id/toast"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="104dp"
+        android:background="@drawable/bg_toast"
+        android:gravity="center"
+        android:maxWidth="520dp"
+        android:paddingHorizontal="18dp"
+        android:paddingVertical="10dp"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <View
+        android:id="@+id/flash"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0"
+        android:background="@android:color/white"
+        android:clickable="false"
+        android:focusable="false"
+        android:importantForAccessibility="no" />
+</FrameLayout>

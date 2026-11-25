@@ -1,0 +1,43 @@
+name: USB Capture APK
+
+on:
+  push:
+    paths:
+      - "usb-capture/**"
+      - ".github/workflows/usb-capture-android.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: usb-capture/android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Install NDK and CMake
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.2.12479018" "cmake;3.22.1"
+
+      - name: Native engine tests (AddressSanitizer + ThreadSanitizer)
+        run: CC=gcc app/src/test/native/run_tests.sh
+
+      - name: Unit tests
+        run: ./gradlew --no-daemon testReleaseUnitTest
+
+      - name: Build signed APK
+        run: ./gradlew --no-daemon assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UsbCapture-apk
+          path: usb-capture/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error

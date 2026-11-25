@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- USB Video Class: webcams and HDMI capture cards. Android also matches
+         this against each interface, so composite devices are included. -->
+    <usb-device class="14" />
+</resources>

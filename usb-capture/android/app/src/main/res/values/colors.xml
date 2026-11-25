@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent">#4DD0E1</color>
+    <color name="accent_dark">#00363D</color>
+    <color name="accent_container">#004F58</color>
+    <color name="on_accent_container">#97F0FF</color>
+    <color name="surface">#14171A</color>
+    <color name="rec_red">#FF3B30</color>
+    <color name="launcher_bg">#0B1E26</color>
+</resources>

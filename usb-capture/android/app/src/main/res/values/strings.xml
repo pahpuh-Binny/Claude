@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">USB Capture</string>
+    <string name="video_area">Video. Tap to show controls, double-tap to switch fit and fill, pinch to zoom.</string>
+    <string name="play_mode">Play</string>
+    <string name="expert_mode">Expert</string>
+    <string name="logs">Logs &amp; crash reports</string>
+    <string name="settings">Settings</string>
+    <string name="screenshot">Screenshot</string>
+    <string name="record">Record</string>
+    <string name="save_replay">Save instant replay</string>
+    <string name="sound">Sound on/off</string>
+    <string name="mic">Commentary microphone on/off</string>
+    <string name="scale">Fit / fill</string>
+    <string name="fullscreen">Full screen</string>
+    <string name="lock">Lock touch</string>
+    <string name="pip">Picture-in-picture</string>
+    <string name="expert_controls">Expert controls</string>
+    <string name="close">Close</string>
+    <string name="hold_to_unlock">Hold to unlock</string>
+    <string name="share">Share</string>
+    <string name="copy">Copy</string>
+    <string name="clear">Clear</string>
+</resources>
