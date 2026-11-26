@@ -43,6 +43,11 @@ class GalleryTile(context: Context, val item: Vault.Item) : ViewGroup(context) {
             requestLayout()
         }
 
+    /** This video's own volume (0–1), speed and loop setting. */
+    var volume = 1f
+    var speed = 1f
+    var loop = true
+
     /** Where playback was, so a tile resumes where it left off when it goes live again. */
     var positionMs = 0L
     var player: ExoPlayer? = null

@@ -5,7 +5,15 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.media.MediaCodecList
 import android.media.MediaFormat
+import android.annotation.SuppressLint
+import android.graphics.RectF
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
+import android.view.MotionEvent
+import android.widget.FrameLayout
+import android.widget.TextView
 import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
@@ -21,6 +29,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
@@ -53,7 +62,7 @@ import kotlin.math.min
  * the phone's video decoders and lowered automatically if it runs out.
  */
 @OptIn(UnstableApi::class)
-class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
+class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener, TileAdjuster.Host {
 
     private lateinit var b: ActivityGalleryBinding
     private val prefs by lazy { getSharedPreferences("gallery", Context.MODE_PRIVATE) }
@@ -73,6 +82,20 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
     private var stopped = true
     private var warnedLimit = false
     private val spans = HashMap<String, Int>()
+    private var adjustersOn = true
+    private var loopDefault = true
+    private val adjusters = HashMap<GalleryTile, TileAdjuster>()
+    private val handles = HashMap<GalleryTile, TextView>()
+    private lateinit var resizePreview: TextView
+    private val handler = Handler(Looper.getMainLooper())
+    private val adjusterTicker = object : Runnable {
+        override fun run() {
+            if (b.adjusters.visibility == View.VISIBLE) {
+                adjusters.values.forEach { if (it.visibility == View.VISIBLE) it.refresh() }
+            }
+            handler.postDelayed(this, 500)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,6 +119,8 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
         count = prefs.getInt("count", 4)
         fill = prefs.getBoolean("fill", true)
         playEveryTile = prefs.getBoolean("every_live", false)
+        adjustersOn = prefs.getBoolean("adjusters", true)
+        loopDefault = prefs.getBoolean("loop", true)
         loadSpans()
         val order = prefs.getString("order", null)?.split(',')
         if (order != null) {
@@ -105,6 +130,14 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
         budget = estimateBudget(items)
 
         b.canvas.listener = this
+        resizePreview = TextView(this).apply {
+            setBackgroundResource(R.drawable.bg_resize_preview)
+            gravity = Gravity.CENTER
+            setTextColor(ContextCompat.getColor(this@GalleryActivity, R.color.text))
+            textSize = 16f
+            visibility = View.GONE
+        }
+        b.adjusters.addView(resizePreview, FrameLayout.LayoutParams(0, 0))
         setUpBars()
         rebuild(resetZoom = true)
         b.hint.postDelayed({ b.hint.animate().alpha(0f).withEndAction { b.hint.visibility = View.GONE } }, 5000)
@@ -114,11 +147,13 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
         super.onStart()
         stopped = false
         b.canvas.post { assignPlayers() }
+        handler.post(adjusterTicker)
     }
 
     override fun onStop() {
         super.onStop()
         stopped = true
+        handler.removeCallbacks(adjusterTicker)
         shown.forEach { releasePlayer(it) }
         saveSpans()
     }
@@ -153,6 +188,14 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
             updateBars()
         }
         b.hideBars.setOnClickListener { setBarsHidden(true) }
+        refreshAdjustersButton()
+        b.adjustersBtn.setOnClickListener {
+            adjustersOn = !adjustersOn
+            prefs.edit().putBoolean("adjusters", adjustersOn).apply()
+            refreshAdjustersButton()
+            layoutAdjusters()
+            toast(if (adjustersOn) "Controls on each video" else "Video controls hidden")
+        }
         b.more.setOnClickListener { showMore(it) }
 
         val choices = listOf(2, 4, 8, 16, 24, 0)
@@ -225,6 +268,10 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
             isCheckable = true
             isChecked = playEveryTile
         }
+        p.menu.add(0, 7, 0, "Loop every video").apply {
+            isCheckable = true
+            isChecked = loopDefault
+        }
         p.menu.add(0, 3, 0, "Shuffle")
         p.menu.add(0, 4, 0, "Newest first")
         p.menu.add(0, 5, 0, "Make all videos the same size")
@@ -251,6 +298,12 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
                     b.canvas.relayout(resetZoom = true)
                 }
                 6 -> b.canvas.resetZoom()
+                7 -> {
+                    loopDefault = !loopDefault
+                    prefs.edit().putBoolean("loop", loopDefault).apply()
+                    tilesById.values.forEach { t -> setLoop(t, loopDefault) }
+                    adjusters.values.forEach { a -> a.refresh() }
+                }
             }
             true
         }
@@ -273,6 +326,7 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
                 GalleryTile(this, item).also { t ->
                     t.span = spans[item.id] ?: 1
                     t.fill = fill
+                    t.loop = loopDefault
                     loadPoster(t)
                 }
             }
@@ -281,6 +335,8 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
         (shown - next.toSet()).forEach {
             releasePlayer(it)
             if (selected === it) select(null)
+            adjusters.remove(it)?.let { a -> b.adjusters.removeView(a) }
+            handles.remove(it)?.let { h -> b.adjusters.removeView(h) }
         }
         shown = next
         shown.forEach { it.paused = allPaused }
@@ -334,7 +390,8 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
             .setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), false)
             .setHandleAudioBecomingNoisy(true)
             .build()
-        p.repeatMode = Player.REPEAT_MODE_ONE
+        p.repeatMode = if (tile.loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+        p.playbackParameters = PlaybackParameters(tile.speed)
         p.setVideoTextureView(tile.attachTexture())
         p.addListener(object : Player.Listener {
             override fun onVideoSizeChanged(videoSize: VideoSize) {
@@ -345,6 +402,11 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (tile === selected) refreshTileBar()
+                adjusters[tile]?.refresh()
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                adjusters[tile]?.refresh()
             }
         })
         applySound(tile, p)
@@ -414,7 +476,7 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
     // ------------------------------------------------------------------ sound
 
     private fun applySound(t: GalleryTile, p: ExoPlayer) {
-        p.volume = if (t.muted) 0f else 1f
+        p.volume = if (t.muted) 0f else t.volume
         // Muted videos don't decode their sound at all, which saves decoders and battery.
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
             .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, t.muted)
@@ -425,6 +487,12 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
         if (t.muted == muted) return
         t.muted = muted
         t.player?.let { applySound(t, it) }
+        adjusters[t]?.refresh()
+    }
+
+    private fun setLoop(t: GalleryTile, loop: Boolean) {
+        t.loop = loop
+        t.player?.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
     }
 
     /** Hear only this video. */
@@ -448,7 +516,8 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
         } else {
             listen(tile)
         }
-        select(tile)
+        if (!adjustersOn) select(tile)
+        shown.forEach { adjusters[it]?.refresh() }
         updateBars()
     }
 
@@ -464,7 +533,243 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
     }
 
     override fun onViewportChanged(settled: Boolean) {
-        if (settled) assignPlayers()
+        if (settled) {
+            assignPlayers()
+            layoutAdjusters()
+        } else if (b.adjusters.visibility == View.VISIBLE && resizePreview.visibility != View.VISIBLE) {
+            // Hide the controls while the wall moves; they come back where the videos settle.
+            b.adjusters.visibility = View.INVISIBLE
+        }
+    }
+
+    // ------------------------------------------------------------------ per-video controls
+
+    private fun refreshAdjustersButton() {
+        b.adjustersBtn.setColorFilter(ContextCompat.getColor(this, if (adjustersOn) R.color.accent else R.color.text))
+    }
+
+    /** Places each video's controls and resize handle over where the video is on screen. */
+    private fun layoutAdjusters() {
+        val overlay = b.adjusters
+        val w = overlay.width.toFloat()
+        val h = overlay.height.toFloat()
+        val full = dp(190)
+        val compact = dp(120)
+        for (t in shown) {
+            val r = b.canvas.screenRect(t)
+            val onScreen = r != null && r.right > 0 && r.bottom > 0 && r.left < w && r.top < h
+            val adj = adjusters[t]
+            val handle = handles[t]
+            if (!adjustersOn || !onScreen || r!!.width() < compact || r.height() < dp(60)) {
+                adj?.visibility = View.GONE
+            } else {
+                val a = adj ?: TileAdjuster(this, t, this).also {
+                    adjusters[t] = it
+                    overlay.addView(it, FrameLayout.LayoutParams(0, 0))
+                }
+                val size = if (r.width() >= full && r.height() >= dp(110)) TileAdjuster.Size.FULL else TileAdjuster.Size.COMPACT
+                a.setSize(size)
+                val ah = a.heightFor(size)
+                // Keep the controls inside the visible part of the video.
+                val left = r.left.coerceAtLeast(0f)
+                val right = r.right.coerceAtMost(w)
+                val bottom = r.bottom.coerceAtMost(h)
+                val lp = a.layoutParams as FrameLayout.LayoutParams
+                val aw = (right - left).toInt()
+                if (lp.width != aw || lp.height != ah) {
+                    lp.width = aw
+                    lp.height = ah
+                    a.layoutParams = lp
+                }
+                a.translationX = left
+                a.translationY = bottom - ah
+                a.visibility = View.VISIBLE
+                a.refresh()
+            }
+            if (!adjustersOn || !onScreen || r!!.width() < dp(56)) {
+                handle?.visibility = View.GONE
+            } else {
+                val hd = handle ?: makeHandle(t).also { handles[t] = it }
+                val size = dp(28)
+                hd.translationX = r.right.coerceAtMost(w) - size
+                hd.translationY = r.bottom.coerceAtMost(h) - size
+                hd.visibility = View.VISIBLE
+                hd.bringToFront()
+            }
+        }
+        resizePreview.bringToFront()
+        overlay.visibility = View.VISIBLE
+    }
+
+    /** The ◢ corner you drag to make a video bigger or smaller. */
+    @SuppressLint("ClickableViewAccessibility")
+    private fun makeHandle(t: GalleryTile): TextView {
+        val size = dp(28)
+        val hd = TextView(this).apply {
+            text = "◢"
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setTextColor(ContextCompat.getColor(this@GalleryActivity, R.color.text))
+            setBackgroundResource(R.drawable.bg_resize_handle)
+            contentDescription = "Drag to resize"
+        }
+        b.adjusters.addView(hd, FrameLayout.LayoutParams(size, size))
+        var startX = 0f
+        var startY = 0f
+        var rect: RectF? = null
+        var target = t.span
+        hd.setOnTouchListener { v, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    startX = e.rawX
+                    startY = e.rawY
+                    rect = b.canvas.screenRect(t)
+                    target = t.span
+                    v.parent.requestDisallowInterceptTouchEvent(true)
+                    showResizePreview(rect, target)
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val r0 = rect ?: return@setOnTouchListener true
+                    val dx = e.rawX - startX
+                    val dyAsWidth = (e.rawY - startY) * 16f / 9f
+                    val grow = if (kotlin.math.abs(dx) >= kotlin.math.abs(dyAsWidth)) dx else dyAsWidth
+                    val cell = b.canvas.cellOnScreen()
+                    val gap = b.canvas.gapOnScreen()
+                    if (cell > 0) {
+                        target = Math.round((r0.width() + grow + gap) / (cell + gap)).coerceIn(1, MAX_SPAN)
+                        showResizePreview(r0, target)
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    resizePreview.visibility = View.GONE
+                    if (target != t.span) resize(t, target - t.span)
+                }
+            }
+            true
+        }
+        return hd
+    }
+
+    private fun showResizePreview(r: RectF?, span: Int) {
+        r ?: return
+        val cell = b.canvas.cellOnScreen()
+        val gap = b.canvas.gapOnScreen()
+        val pw = (span * cell + (span - 1) * gap).toInt()
+        val ph = (span * cell * 9f / 16f + (span - 1) * gap).toInt()
+        val lp = resizePreview.layoutParams as FrameLayout.LayoutParams
+        lp.width = pw
+        lp.height = ph
+        resizePreview.layoutParams = lp
+        resizePreview.translationX = r.left
+        resizePreview.translationY = r.top
+        resizePreview.text = "$span×$span"
+        resizePreview.visibility = View.VISIBLE
+        resizePreview.bringToFront()
+    }
+
+    // TileAdjuster.Host
+
+    override fun adjTogglePlay(t: GalleryTile) {
+        val p = t.player
+        when {
+            p == null -> {
+                t.paused = false
+                t.failedAt = 0
+                assignPlayers()
+                if (t.player == null) toast("Zoom in on this video, or pause another, to play it")
+            }
+            p.playbackState == Player.STATE_ENDED -> {
+                p.seekTo(0)
+                p.playWhenReady = true
+                t.paused = false
+            }
+            else -> {
+                t.paused = p.playWhenReady
+                p.playWhenReady = !t.paused
+            }
+        }
+        if (t === selected) refreshTileBar()
+    }
+
+    override fun adjToggleMute(t: GalleryTile) {
+        if (t.muted) {
+            if (t.volume < 0.05f) t.volume = 1f
+            setMuted(t, false)
+            assignPlayers()
+        } else {
+            setMuted(t, true)
+        }
+        updateBars()
+    }
+
+    override fun adjVolume(t: GalleryTile, volume: Float) {
+        t.volume = volume
+        // Turning a video up adds it to what you hear; turning it right down mutes it.
+        if (volume > 0f && t.muted) {
+            setMuted(t, false)
+            assignPlayers()
+        } else if (volume == 0f && !t.muted) {
+            setMuted(t, true)
+        }
+        t.player?.let { applySound(t, it) }
+        updateBars()
+    }
+
+    override fun adjSpeed(t: GalleryTile) {
+        val i = TILE_SPEEDS.indexOfFirst { kotlin.math.abs(it - t.speed) < 0.01f }
+        t.speed = TILE_SPEEDS[(i + 1).mod(TILE_SPEEDS.size)]
+        t.player?.playbackParameters = PlaybackParameters(t.speed)
+    }
+
+    override fun adjLoop(t: GalleryTile) {
+        setLoop(t, !t.loop)
+        toast(if (t.loop) "Looping this video" else "This video plays once")
+    }
+
+    override fun adjSeek(t: GalleryTile, fraction: Float) {
+        val p = t.player ?: return
+        val dur = p.duration.takeIf { it > 0 } ?: return
+        p.seekTo((dur * fraction).toLong())
+    }
+
+    override fun adjMore(t: GalleryTile, anchor: View) {
+        val pm = PopupMenu(this, anchor)
+        pm.menu.add(0, 1, 0, "Listen to only this one")
+        if (t.muted) pm.menu.add(0, 2, 0, "Add to what you hear")
+        if (t.span < MAX_SPAN) pm.menu.add(0, 3, 0, "Bigger")
+        if (t.span > 1) pm.menu.add(0, 4, 0, "Smaller")
+        pm.menu.add(0, 5, 0, "Zoom in on it")
+        pm.menu.add(0, 6, 0, "Open in player")
+        pm.menu.add(0, 7, 0, "Restart")
+        pm.setOnMenuItemClickListener {
+            when (it.itemId) {
+                1 -> listen(t)
+                2 -> addToMix(t)
+                3 -> resize(t, +1)
+                4 -> resize(t, -1)
+                5 -> b.canvas.zoomTo(t)
+                6 -> openInPlayer(t)
+                7 -> {
+                    t.player?.seekTo(0)
+                    t.positionMs = 0
+                }
+            }
+            adjusters[t]?.refresh()
+            updateBars()
+            true
+        }
+        pm.show()
+    }
+
+    override fun adjTouched() {}
+
+    private fun openInPlayer(t: GalleryTile) {
+        val pos = t.player?.currentPosition ?: t.positionMs
+        startActivity(
+            Intent(this, PlayerActivity::class.java)
+                .putExtra(PlayerActivity.EXTRA_ID, t.item.id)
+                .putExtra(PlayerActivity.EXTRA_POSITION, pos)
+        )
     }
 
     // ------------------------------------------------------------------ selected tile
@@ -523,14 +828,7 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
         if (t.span > 1) button("Smaller", null) { resize(t, -1) }
         if (t.span < MAX_SPAN) button("Bigger", null) { resize(t, +1) }
         button("Zoom", R.drawable.ic_fullscreen) { b.canvas.zoomTo(t) }
-        button("Open", null) {
-            val pos = t.player?.currentPosition ?: t.positionMs
-            startActivity(
-                Intent(this, PlayerActivity::class.java)
-                    .putExtra(PlayerActivity.EXTRA_ID, t.item.id)
-                    .putExtra(PlayerActivity.EXTRA_POSITION, pos)
-            )
-        }
+        button("Open", null) { openInPlayer(t) }
         button("Done", R.drawable.ic_close) { select(null) }
     }
 
@@ -559,5 +857,6 @@ class GalleryActivity : AppCompatActivity(), GalleryCanvas.Listener {
 
     companion object {
         const val MAX_SPAN = 4
+        private val TILE_SPEEDS = listOf(0.5f, 1f, 1.5f, 2f)
     }
 }

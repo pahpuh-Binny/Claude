@@ -91,6 +91,12 @@
                     android:src="@drawable/ic_volume_off" />
 
                 <ImageButton
+                    android:id="@+id/adjustersBtn"
+                    style="@style/Multiview.IconButton"
+                    android:contentDescription="@string/adjusters"
+                    android:src="@drawable/ic_tune" />
+
+                <ImageButton
                     android:id="@+id/hideBars"
                     style="@style/Multiview.IconButton"
                     android:contentDescription="@string/full_screen"
@@ -121,11 +127,23 @@
             </HorizontalScrollView>
         </LinearLayout>
 
-        <io.github.pahpuhbinny.multiview.vault.GalleryCanvas
-            android:id="@+id/canvas"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1" />
+            android:layout_weight="1">
+
+            <io.github.pahpuhbinny.multiview.vault.GalleryCanvas
+                android:id="@+id/canvas"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!-- Per-video controls and resize handles, drawn at normal size over the zoomable wall. -->
+            <FrameLayout
+                android:id="@+id/adjusters"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipChildren="true" />
+        </FrameLayout>
     </LinearLayout>
 
     <HorizontalScrollView
@@ -160,6 +178,7 @@
         android:paddingHorizontal="14dp"
         android:paddingVertical="8dp"
         android:text="@string/gallery_hint"
+        android:elevation="8dp"
         android:textColor="@color/text"
         android:textSize="13sp" />
 </FrameLayout>

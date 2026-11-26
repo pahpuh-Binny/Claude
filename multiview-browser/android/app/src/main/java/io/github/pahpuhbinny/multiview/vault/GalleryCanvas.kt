@@ -43,6 +43,7 @@ class GalleryCanvas @JvmOverloads constructor(context: Context, attrs: Attribute
         private set
     private val gap = context.dp(2)
     private val noRect = Rect()
+    private var cellWidth = 0
 
     /** Holds the tiles at their un-zoomed positions; zoom and pan transform it as a whole. */
     private val content = object : ViewGroup(context) {
@@ -113,6 +114,7 @@ class GalleryCanvas @JvmOverloads constructor(context: Context, attrs: Attribute
         val packing = GalleryGrid.pack(spans, columns)
         val cellW = (width - (columns - 1) * gap) / columns
         val cellH = cellW * 9 / 16
+        cellWidth = cellW
         tiles.forEachIndexed { i, t ->
             val c = packing.cells[i]
             val left = c.col * (cellW + gap)
@@ -179,6 +181,17 @@ class GalleryCanvas @JvmOverloads constructor(context: Context, attrs: Attribute
     }
 
     fun isZoomedIn() = scale > minScale * 1.05f
+
+    /** Where [tile] is on screen right now, relative to this view. */
+    fun screenRect(tile: GalleryTile): RectF? {
+        val r = rects[tile] ?: return null
+        return RectF(tx + r.left * scale, ty + r.top * scale, tx + r.right * scale, ty + r.bottom * scale)
+    }
+
+    /** One grid cell's on-screen width, and the gap between cells. */
+    fun cellOnScreen(): Float = cellWidth * scale
+
+    fun gapOnScreen(): Float = gap * scale
 
     private fun tileAt(x: Float, y: Float): GalleryTile? {
         val cx = ((x - tx) / scale).toInt()
