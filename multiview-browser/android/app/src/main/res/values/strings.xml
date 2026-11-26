@@ -32,4 +32,8 @@
     <string name="no_bookmarks">No bookmarks yet. Open a video and tap ☆ in the menu to save it with a moving preview.</string>
     <string name="no_sessions">No saved sessions. Save your open tabs to come back to them later.</string>
     <string name="vault_empty">No downloads yet. When a page has a video, tap the download button in the address bar.</string>
+    <string name="new_group">New group</string>
+    <string name="close_all">Close all</string>
+    <string name="other_tabs">Other tabs</string>
+    <string name="switcher_hint">Tap “+ Multiview” on up to 4 tabs to watch them side by side. Long-press a tab to put it in a group. Every tab keeps playing in the background.</string>
 </resources>

@@ -135,6 +135,22 @@
             app:trackColor="@android:color/transparent"
             app:trackThickness="2dp" />
 
+        <HorizontalScrollView
+            android:id="@+id/groupBar"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/groupChips"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="8dp" />
+        </HorizontalScrollView>
+
         <io.github.pahpuhbinny.multiview.browser.TileLayout
             android:id="@+id/tiles"
             android:layout_width="match_parent"

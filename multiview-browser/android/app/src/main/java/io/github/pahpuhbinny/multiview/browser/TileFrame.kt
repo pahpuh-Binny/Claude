@@ -31,6 +31,7 @@ class TileFrame(context: Context, val tab: Tab) : FrameLayout(context) {
 
     val headerHeight = context.dp(32)
     private val header = LinearLayout(context)
+    private val groupStripe = View(context)
     private val audioBtn = ImageButton(context)
     private val titleView = TextView(context)
     private val maxBtn = ImageButton(context)
@@ -60,6 +61,8 @@ class TileFrame(context: Context, val tab: Tab) : FrameLayout(context) {
             btn.setPadding(pad, pad, pad, pad)
             header.addView(btn, LinearLayout.LayoutParams(headerHeight, headerHeight))
         }
+        header.addView(groupStripe, LinearLayout.LayoutParams(context.dp(4), LayoutParams.MATCH_PARENT))
+        groupStripe.visibility = GONE
         small(audioBtn, R.drawable.ic_volume_up, context.getString(R.string.mute))
         titleView.setTextColor(ContextCompat.getColor(context, R.color.text))
         titleView.textSize = 12f
@@ -115,6 +118,8 @@ class TileFrame(context: Context, val tab: Tab) : FrameLayout(context) {
     fun refreshHeader() {
         if (!multiview) return
         titleView.text = tab.displayTitle()
+        groupStripe.visibility = if (tab.groupColor != 0) VISIBLE else GONE
+        if (tab.groupColor != 0) groupStripe.setBackgroundColor(tab.groupColor)
         audioBtn.setImageResource(if (tab.muted) R.drawable.ic_volume_off else R.drawable.ic_volume_up)
         audioBtn.setColorFilter(
             ContextCompat.getColor(context, if (tab.muted) R.color.text_dim else if (tab.isAudible) R.color.safe else R.color.text)

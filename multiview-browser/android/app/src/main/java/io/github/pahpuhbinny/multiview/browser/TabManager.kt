@@ -83,6 +83,8 @@ class TabManager(
     val unsafeAllowed: MutableSet<String> = Collections.synchronizedSet(HashSet())
 
     private var nextId = 1
+    val groups = ArrayList<TabGroup>()
+    private var nextGroupId = 1
     private val main = Handler(Looper.getMainLooper())
     private val webViewUa: String by lazy { WebSettings.getDefaultUserAgent(activity) }
     private var cachedScript: String? = null
@@ -97,9 +99,13 @@ class TabManager(
 
     fun tabById(id: Int) = tabs.firstOrNull { it.id == id }
 
-    fun newTab(url: String?, focus: Boolean = true, index: Int = tabs.size, lazy: Boolean = false): Tab {
+    fun newTab(url: String?, focus: Boolean = true, index: Int = tabs.size, lazy: Boolean = false, group: TabGroup? = null): Tab {
         val tab = Tab(nextId++)
         tab.desktopMode = Prefs.desktopModeDefault
+        if (group != null && group in groups) {
+            tab.groupId = group.id
+            tab.groupColor = group.argb
+        }
         tab.frame = TileFrame(activity, tab).also { it.actions = this }
         tab.frame.setStartPage(listener.createStartPage(tab))
         createWebView(tab)
@@ -126,6 +132,7 @@ class TabManager(
         tabs.removeAt(idx)
         tiles.removeView(tab.frame)
         destroyWebView(tab)
+        pruneGroups()
         if (inMultiview && multiviewIds.size < 2) inMultiview = false
         if (focused === tab) {
             focused = null
@@ -148,6 +155,7 @@ class TabManager(
             destroyWebView(t)
         }
         tabs.clear()
+        groups.clear()
         multiviewIds.clear()
         inMultiview = false
         focused = null
@@ -238,6 +246,140 @@ class TabManager(
 
     override fun onTileTitle(tab: Tab) {
         if (focused !== tab) focus(tab)
+    }
+
+    // ------------------------------------------------------------------ tab groups
+
+    fun groupOf(tab: Tab): TabGroup? = if (tab.groupId == 0) null else groups.firstOrNull { it.id == tab.groupId }
+
+    fun groupById(id: Int) = groups.firstOrNull { it.id == id }
+
+    fun tabsIn(group: TabGroup): List<Tab> = tabs.filter { it.groupId == group.id }
+
+    /** Groups in the order their first tab appears. */
+    fun orderedGroups(): List<TabGroup> =
+        groups.sortedBy { g -> tabs.indexOfFirst { it.groupId == g.id }.let { if (it < 0) Int.MAX_VALUE else it } }
+
+    fun createGroup(name: String, color: Int, members: List<Tab>): TabGroup {
+        val g = TabGroup(nextGroupId++, name.ifBlank { "Group ${nextGroupId - 1}" }.take(60), color)
+        groups.add(g)
+        members.forEach { assign(it, g) }
+        keepGroupsTogether()
+        pruneGroups()
+        groupsChanged()
+        return g
+    }
+
+    /** The colour to suggest for a new group: the first one not in use. */
+    fun nextFreeColor(): Int {
+        val used = groups.map { it.color }.toSet()
+        return (1 until GroupColors.count).firstOrNull { it !in used } ?: (groups.size % GroupColors.count)
+    }
+
+    private fun assign(tab: Tab, g: TabGroup?) {
+        tab.groupId = g?.id ?: 0
+        tab.groupColor = g?.argb ?: 0
+        tab.frame.refreshHeader()
+    }
+
+    fun setGroup(tab: Tab, g: TabGroup?) {
+        assign(tab, g)
+        keepGroupsTogether()
+        pruneGroups()
+        groupsChanged()
+    }
+
+    fun renameGroup(g: TabGroup, name: String) {
+        g.name = name.ifBlank { g.name }.take(60)
+        groupsChanged()
+    }
+
+    fun recolorGroup(g: TabGroup, color: Int) {
+        g.color = color
+        tabsIn(g).forEach { assign(it, g) }
+        groupsChanged()
+    }
+
+    fun toggleCollapsed(g: TabGroup) {
+        g.collapsed = !g.collapsed
+        listener.onTabsChanged()
+    }
+
+    /** Takes the tabs out of the group and deletes it. */
+    fun ungroup(g: TabGroup) {
+        tabsIn(g).forEach { assign(it, null) }
+        groups.remove(g)
+        groupsChanged()
+    }
+
+    fun closeGroup(g: TabGroup) {
+        val members = tabsIn(g)
+        groups.remove(g)
+        members.forEach { closeTab(it) }
+        groupsChanged()
+    }
+
+    fun newTabInGroup(g: TabGroup): Tab {
+        val last = tabs.indexOfLast { it.groupId == g.id }
+        return newTab(null, focus = true, index = if (last < 0) tabs.size else last + 1, group = g)
+    }
+
+    /** Shows the group's tabs side by side (up to [MAX_TILES]). Returns how many are shown. */
+    fun watchGroup(g: TabGroup): Int {
+        val members = tabsIn(g).take(MAX_TILES)
+        if (members.isEmpty()) return 0
+        if (members.size == 1) {
+            focus(members[0])
+            return 1
+        }
+        multiviewIds.clear()
+        members.forEach { multiviewIds.add(it.id) }
+        focused = members[0]
+        inMultiview = false
+        enterMultiview()
+        return members.size
+    }
+
+    fun muteGroup(g: TabGroup, mute: Boolean) {
+        tabsIn(g).forEach { setMuted(it, mute, notify = false) }
+        tabsIn(g).forEach { listener.onTabUpdated(it) }
+        mediaChanged()
+    }
+
+    fun pauseGroup(g: TabGroup) {
+        for (t in tabsIn(g)) if (t.isPlaying) {
+            t.held = true
+            t.postToFrames("""{"cmd":"pauseAll"}""")
+        }
+        mediaChanged()
+    }
+
+    fun playGroup(g: TabGroup) {
+        for (t in tabsIn(g)) if (t.held) {
+            t.held = false
+            t.postToFrames("""{"cmd":"playAll"}""")
+        }
+        mediaChanged()
+    }
+
+    /** Moves each group's tabs next to each other, keeping the first tab's position. */
+    private fun keepGroupsTogether() {
+        val out = groupedOrder(tabs) { it.groupId }
+        tabs.clear()
+        tabs.addAll(out)
+    }
+
+    /** Groups with no tabs left disappear. */
+    private fun pruneGroups() {
+        val used = tabs.map { it.groupId }.toSet()
+        groups.removeAll { it.id !in used }
+        tabs.filter { it.groupId != 0 && groupById(it.groupId) == null }.forEach { assign(it, null) }
+    }
+
+    private fun groupsChanged() {
+        tabs.forEach { it.frame.refreshHeader() }
+        listener.onTabsChanged()
+        focused?.let { listener.onFocusChanged(it) }
     }
 
     // ------------------------------------------------------------------ sound
@@ -694,7 +836,7 @@ class TabManager(
         if (userGesture) {
             // A link or button you tapped: open it in a new tab next to this one,
             // but close it straight away if it goes to an ad or malware server.
-            val t = newTab(null, focus = true, index = tabs.indexOf(opener) + 1)
+            val t = newTab(null, focus = true, index = tabs.indexOf(opener) + 1, group = groupOf(opener))
             t.checkFirstNav = true
             t.openerId = opener.id
             showStart(t, false)
@@ -911,6 +1053,20 @@ class TabManager(
 
     companion object {
         const val MAX_TILES = 4
+
+        /**
+         * Reorders [items] so each group's members sit together where the
+         * group's first member was; ungrouped items (group 0) keep their place.
+         */
+        fun <T> groupedOrder(items: List<T>, groupOf: (T) -> Int): List<T> {
+            val out = ArrayList<T>(items.size)
+            val placed = HashSet<Int>()
+            for (t in items) {
+                val g = groupOf(t)
+                if (g == 0) out.add(t) else if (placed.add(g)) out.addAll(items.filter { groupOf(it) == g })
+            }
+            return out
+        }
 
         fun emptyResponse() = WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
     }

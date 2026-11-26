@@ -16,7 +16,8 @@ A private Android browser built for watching videos. Videos keep playing when yo
 | **Search, SafeSearch off** | Choose DuckDuckGo (default), Brave Search, Startpage, Qwant, Google or Bing. SafeSearch is always off. Nothing is sent while you type (no search suggestions), and searches aren't saved. |
 | **Saving videos (the vault)** | When a page has a video file or stream, the download button appears in the address bar. See [How saved videos are kept safe](#how-saved-videos-are-kept-safe). |
 | **Cast** | Send a page's video to a Chromecast or Google TV, starting where you were. For sites that don't expose a video file (YouTube, Netflix…), **Mirror screen** opens Android's screen casting. |
-| **Sessions** | Save your open tabs, including which ones were in multiview and where each video was, as a named session with a preview picture. Reopen it later, replacing or adding to your tabs. Your tabs are also reopened automatically when the app starts (you can turn this off). |
+| **Tab groups** | Put tabs in named, coloured groups, for example "Sports", "Music" or "Watch later". In the tab overview, groups appear as sections you can collapse. From a group's menu you can **watch it together** in multiview, pause, play, mute or unmute the whole group, open a new tab in it, rename or recolour it, save it as a session, ungroup it or close it. While you're in a grouped tab, a bar under the address bar lists the group's tabs so you can switch between them in one tap. Links that a grouped tab opens in a new tab join its group. |
+| **Sessions** | Save your open tabs, including their groups, which ones were in multiview and where each video was, as a named session with a preview picture. Reopen it later, replacing or adding to your tabs. Your tabs are also reopened automatically when the app starts (you can turn this off). |
 | **Bookmarks with video previews** | Bookmarking a page with a playing video records a few seconds of the video as a short moving preview. The bookmark also remembers your position in the video, and opening it later continues from there. Bookmarks show as animated cards in the Bookmarks screen and on the new-tab page. |
 
 ### How saved videos are kept safe
@@ -45,6 +46,7 @@ Needs Android 8.0 or newer. Casting needs Google Play services; everything else 
 
 - **Address bar:** type an address or a search and press Go. The shield on the left shows how many things were blocked on the page; tap it to see details or turn blocking off for that site.
 - **Watch several videos:** open the videos in separate tabs and tap the grid button. Multiview starts with the current tab and the others that are playing. To choose tabs yourself, open the tab overview (the number button) and tap **+ Multiview** on up to four tabs. In multiview, tap a tile to control it from the address bar (it gets a blue outline). Its speaker button mutes or unmutes it.
+- **Tab groups:** in the tab overview, tap **New group**, name it, pick a colour and tick the tabs to include. Or long-press any tab (in the overview or the group bar), or use **Menu → Add tab to group**. Tap a group's header to collapse it; its **⋯** button has the group actions. The colour of the tab counter shows which group you're in.
 - **Full screen:** a video's own full-screen button works in every tile. In multiview, **Menu → Hide browser bars** gives you a clean video wall.
 - **Leaving the app:** press Home and everything keeps playing; use the notification to pause or resume. Pressing Back on the last page also leaves without closing anything. **Menu → Exit** closes everything.
 - **Save a video:** tap the download button in the address bar, then **Save to vault**. Progress shows in the notification and in **Menu → Downloads vault**.
@@ -85,7 +87,7 @@ android/app/src/main/
   assets/js/inject.js        Script added to every page: background play, media tracking, mute/pause, ad skipping
   assets/css/cosmetic.css    Ad boxes hidden on pages
   assets/filters/            Built-in ad, tracker and malware domain lists
-  java/.../browser/          Tabs, multiview layout, WebView setup, navigation and blocking
+  java/.../browser/          Tabs, tab groups, multiview layout, WebView setup, navigation and blocking
   java/.../security/         Blocklists and their weekly updates
   java/.../media/            Background playback service and notification
   java/.../download/         Video saving: downloader, HLS, clean-file rebuild
@@ -93,7 +95,7 @@ android/app/src/main/
   java/.../cast/             Chromecast
   java/.../data/             Bookmarks, sessions and preview capture
   java/.../ui/               Screens: browser, tabs, bookmarks, sessions, settings
-android/app/src/test/        Unit tests (blocklists, HLS, file checks, encryption)
+android/app/src/test/        Unit tests (blocklists, HLS, file checks, encryption, tab groups and sessions)
 tests/page-script/           Chromium tests for inject.js
 ```
 

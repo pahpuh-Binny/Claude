@@ -47,6 +47,7 @@ object Prefs {
 
     // Sessions
     val restoreTabs get() = b("restore_tabs", true)
+    val groupBar get() = b("group_bar", true)
 
     /** Sites where you've switched ad and tracker blocking off. */
     var allowlist: Set<String>

@@ -148,6 +148,12 @@
             app:defaultValue="true"
             app:iconSpaceReserved="false"
             app:title="Reopen your tabs when the app starts" />
+        <SwitchPreferenceCompat
+            app:key="group_bar"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Show the tab group bar"
+            app:summary="When you're in a tab group, its tabs appear under the address bar for quick switching" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="About" app:iconSpaceReserved="false">

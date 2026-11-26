@@ -31,14 +31,31 @@ data class Bookmark(
     }
 }
 
-data class SessionTab(val url: String, val title: String, val muted: Boolean, val inMultiview: Boolean, val videoTime: Double) {
+data class SessionTab(
+    val url: String,
+    val title: String,
+    val muted: Boolean,
+    val inMultiview: Boolean,
+    val videoTime: Double,
+    /** Id of its [SessionGroup] within the session (0 = none). */
+    val group: Int = 0,
+) {
     fun toJson(): JSONObject = JSONObject().put("url", url).put("title", title).put("muted", muted)
-        .put("mv", inMultiview).put("t", videoTime)
+        .put("mv", inMultiview).put("t", videoTime).put("g", group)
 
     companion object {
         fun fromJson(o: JSONObject) = SessionTab(
-            o.getString("url"), o.optString("title"), o.optBoolean("muted"), o.optBoolean("mv"), o.optDouble("t", 0.0)
+            o.getString("url"), o.optString("title"), o.optBoolean("muted"), o.optBoolean("mv"), o.optDouble("t", 0.0),
+            o.optInt("g", 0),
         )
+    }
+}
+
+data class SessionGroup(val id: Int, val name: String, val color: Int, val collapsed: Boolean) {
+    fun toJson(): JSONObject = JSONObject().put("id", id).put("name", name).put("color", color).put("collapsed", collapsed)
+
+    companion object {
+        fun fromJson(o: JSONObject) = SessionGroup(o.getInt("id"), o.optString("name"), o.optInt("color"), o.optBoolean("collapsed"))
     }
 }
 
@@ -51,18 +68,22 @@ data class Session(
     var tabs: List<SessionTab>,
     var focusedIndex: Int,
     var multiview: Boolean,
+    var groups: List<SessionGroup> = emptyList(),
 ) {
     fun toJson(): JSONObject = JSONObject().put("id", id).put("name", name).put("created", createdAt)
         .put("updated", updatedAt).put("focused", focusedIndex).put("multiview", multiview)
         .put("tabs", JSONArray().also { a -> tabs.forEach { a.put(it.toJson()) } })
+        .put("groups", JSONArray().also { a -> groups.forEach { a.put(it.toJson()) } })
 
     companion object {
         fun fromJson(o: JSONObject): Session {
             val arr = o.optJSONArray("tabs") ?: JSONArray()
+            val groups = o.optJSONArray("groups") ?: JSONArray()
             return Session(
                 o.getString("id"), o.optString("name"), o.optLong("created"), o.optLong("updated"),
                 (0 until arr.length()).map { SessionTab.fromJson(arr.getJSONObject(it)) },
                 o.optInt("focused"), o.optBoolean("multiview"),
+                (0 until groups.length()).mapNotNull { runCatching { SessionGroup.fromJson(groups.getJSONObject(it)) }.getOrNull() },
             )
         }
     }

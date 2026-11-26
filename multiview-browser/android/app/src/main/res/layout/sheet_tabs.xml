@@ -24,13 +24,24 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/newGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center"
+            android:paddingHorizontal="10dp"
+            android:text="@string/new_group"
+            android:textColor="@color/accent"
+            android:textSize="13sp" />
+
+        <TextView
             android:id="@+id/closeAll"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:background="?attr/selectableItemBackground"
             android:gravity="center"
             android:paddingHorizontal="10dp"
-            android:text="Close all"
+            android:text="@string/close_all"
             android:textColor="@color/text_dim"
             android:textSize="13sp" />
     </LinearLayout>
@@ -41,7 +52,7 @@
         android:layout_height="wrap_content"
         android:paddingHorizontal="16dp"
         android:paddingBottom="8dp"
-        android:text="Tap “Multiview” on up to 4 tabs to watch them side by side. Every tab keeps playing in the background."
+        android:text="@string/switcher_hint"
         android:textColor="@color/text_dim"
         android:textSize="12sp" />
 

@@ -63,6 +63,10 @@ class Tab(val id: Int) {
     var upgradeAttempts = 0
     var scriptHandler: ScriptHandler? = null
     var startPageVisible = false
+    /** The tab group this tab is in (0 = none). */
+    var groupId = 0
+    /** Its group's colour, or 0 when ungrouped (kept in sync by TabManager). */
+    var groupColor = 0
     val createdAt = System.currentTimeMillis()
 
     val frames = LinkedHashMap<JavaScriptReplyProxy, FrameMedia>()

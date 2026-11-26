@@ -93,4 +93,6 @@ dependencies {
     implementation("androidx.mediarouter:mediarouter:1.7.0")
 
     testImplementation("junit:junit:4.13.2")
+    // Real org.json for JVM tests (Android's copy is only a stub there).
+    testImplementation("org.json:json:20240303")
 }

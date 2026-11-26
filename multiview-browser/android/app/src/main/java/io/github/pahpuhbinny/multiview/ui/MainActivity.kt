@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Rect
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -46,13 +47,16 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import io.github.pahpuhbinny.multiview.Prefs
 import io.github.pahpuhbinny.multiview.R
+import io.github.pahpuhbinny.multiview.browser.GroupColors
 import io.github.pahpuhbinny.multiview.browser.Tab
+import io.github.pahpuhbinny.multiview.browser.TabGroup
 import io.github.pahpuhbinny.multiview.browser.TabManager
 import io.github.pahpuhbinny.multiview.browser.UrlTools
 import io.github.pahpuhbinny.multiview.cast.CastSupport
 import io.github.pahpuhbinny.multiview.data.Bookmark
 import io.github.pahpuhbinny.multiview.data.Capture
 import io.github.pahpuhbinny.multiview.data.Session
+import io.github.pahpuhbinny.multiview.data.SessionGroup
 import io.github.pahpuhbinny.multiview.data.SessionTab
 import io.github.pahpuhbinny.multiview.data.Store
 import io.github.pahpuhbinny.multiview.databinding.ActivityMainBinding
@@ -149,6 +153,7 @@ class MainActivity : AppCompatActivity(), TabManager.Listener {
             settingsDirty = false
             tabs.applySettings()
             tabs.focused?.let { updateToolbar(it) }
+            updateGroupBar()
         }
         tabs.tabs.filter { it.startPageVisible }.forEach { (it.frame.startPage as? StartPageView)?.refresh() }
     }
@@ -311,6 +316,94 @@ class MainActivity : AppCompatActivity(), TabManager.Listener {
         b.tabsCount.text = if (tabs.tabs.size > 99) ":D" else tabs.tabs.size.toString()
         b.tabsAudioDot.visibility = if (tabs.tabs.any { it.isPlaying && it !== tabs.focused }) View.VISIBLE else View.GONE
         b.multiviewBtn.setColorFilter(ContextCompat.getColor(this, if (tabs.inMultiview) R.color.accent else R.color.text))
+        // The tab counter takes the colour of the current tab's group.
+        val g = tabs.focused?.let { tabs.groupOf(it) }
+        b.tabsCount.background = GradientDrawable().apply {
+            cornerRadius = dp(6).toFloat()
+            setStroke(dp(2), g?.argb ?: ContextCompat.getColor(this@MainActivity, R.color.text))
+            if (g != null) setColor(GroupColors.soft(g.color, 0x55))
+        }
+        updateGroupBar()
+    }
+
+    private var groupBarSignature = ""
+
+    /**
+     * When the current tab is in a group, a strip under the address bar lists
+     * the group's tabs for quick switching, with a + to add a tab to it.
+     */
+    private fun updateGroupBar() {
+        val focused = tabs.focused
+        val g = focused?.let { tabs.groupOf(it) }
+        val hidden = g == null || !Prefs.groupBar || immersive || isInPictureInPictureMode || fullscreenView != null
+        if (hidden) {
+            b.groupBar.visibility = View.GONE
+            groupBarSignature = ""
+            return
+        }
+        val members = tabs.tabsIn(g!!)
+        val sig = g.id.toString() + g.name + g.color + focused!!.id + members.joinToString { "${it.id}:${it.displayTitle()}:${it.isPlaying}:${it.muted}" }
+        b.groupBar.visibility = View.VISIBLE
+        if (sig == groupBarSignature) return
+        groupBarSignature = sig
+        val row = b.groupChips
+        row.removeAllViews()
+        fun chip(text: String, fill: Int, stroke: Int, textColor: Int): TextView = TextView(this).apply {
+            this.text = text
+            textSize = 12f
+            maxLines = 1
+            setTextColor(textColor)
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(dp(10), 0, dp(10), 0)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(13).toFloat()
+                setColor(fill)
+                if (stroke != 0) setStroke(dp(1), stroke)
+            }
+            row.addView(this, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(26)).apply { marginEnd = dp(6) })
+        }
+        val label = chip("● " + g.name, 0, 0, g.argb)
+        label.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        label.setOnClickListener { v -> GroupDialogs.groupMenu(this, tabs, g, v) }
+        val dim = ContextCompat.getColor(this, R.color.text)
+        for (t in members) {
+            val title = t.displayTitle().let { if (it.length > 18) it.take(17) + "…" else it }
+            val prefix = if (t.isPlaying) (if (t.muted) "▶🔇 " else "▶ ") else ""
+            val c = if (t === focused) chip(prefix + title, GroupColors.soft(g.color, 0x66), g.argb, dim)
+            else chip(prefix + title, ContextCompat.getColor(this, R.color.surface2), 0, ContextCompat.getColor(this, R.color.text_dim))
+            c.setOnClickListener { tabs.focus(t) }
+            c.setOnLongClickListener {
+                GroupDialogs.moveTab(this, tabs, t)
+                true
+            }
+        }
+        val add = chip("+", ContextCompat.getColor(this, R.color.surface2), 0, g.argb)
+        add.contentDescription = "New tab in ${g.name}"
+        add.setOnClickListener {
+            tabs.newTabInGroup(g)
+            focusAddressBar()
+        }
+        // Keep the current tab's chip in view.
+        val idx = members.indexOf(focused) + 1
+        b.groupBar.post { row.getChildAt(idx)?.let { b.groupBar.smoothScrollTo((it.left - dp(40)).coerceAtLeast(0), 0) } }
+    }
+
+    fun focusAddressBar() {
+        b.urlField.requestFocus()
+        showKeyboard(b.urlField)
+    }
+
+    fun closeSwitcher() {
+        switcher?.dismiss()
+    }
+
+    fun onGroupWatched(count: Int) {
+        closeSwitcher()
+        if (count > 1) snack("Watching $count tabs from the group together")
+    }
+
+    fun saveGroupAsSession(g: TabGroup) {
+        promptSaveSession(null, only = tabs.tabsIn(g), defaultName = g.name)
     }
 
     fun openNewTab() {
@@ -400,6 +493,7 @@ class MainActivity : AppCompatActivity(), TabManager.Listener {
 
     override fun onTabUpdated(tab: Tab) {
         if (tab === tabs.focused) updateToolbar(tab)
+        if (tab.groupId != 0 && tab.groupId == tabs.focused?.groupId) updateGroupBar()
     }
 
     override fun onMediaStateChanged() {
@@ -431,6 +525,7 @@ class MainActivity : AppCompatActivity(), TabManager.Listener {
         b.fullscreenHost.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         b.fullscreenHost.visibility = View.VISIBLE
         setSystemBarsHidden(true)
+        updateGroupBar()
         tab.mainVideo()?.let { v ->
             if (v.width > 0 && v.height > 0) {
                 requestedOrientation = if (v.width >= v.height) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
@@ -448,6 +543,7 @@ class MainActivity : AppCompatActivity(), TabManager.Listener {
         fullscreenCallback = null
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         if (!immersive) setSystemBarsHidden(false)
+        updateGroupBar()
     }
 
     override fun onPopupBlocked(tab: Tab, url: String) {
@@ -529,7 +625,11 @@ class MainActivity : AppCompatActivity(), TabManager.Listener {
         val popup = PopupMenu(this, anchor)
         val m = popup.menu
         val bookmarked = !tab.isBlank && Store.findBookmark(this, tab.url) != null
+        val group = tabs.groupOf(tab)
         m.add(0, 1, 0, R.string.new_tab)
+        if (group != null) m.add(0, 16, 0, "New tab in “${group.name}”")
+        m.add(0, 17, 0, if (group == null) "Add tab to group…" else "Move tab to another group…")
+        if (group != null) m.add(0, 18, 0, "Remove tab from “${group.name}”")
         m.add(0, 2, 0, R.string.bookmarks)
         if (!tab.isBlank) m.add(0, 3, 0, if (bookmarked) "Remove bookmark" else "Bookmark with preview")
         m.add(0, 4, 0, R.string.sessions)
@@ -564,6 +664,12 @@ class MainActivity : AppCompatActivity(), TabManager.Listener {
                 13 -> startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, tab.url), null))
                 14 -> startActivity(Intent(this, SettingsActivity::class.java))
                 15 -> exitApp()
+                16 -> group?.let {
+                    tabs.newTabInGroup(it)
+                    focusAddressBar()
+                }
+                17 -> GroupDialogs.moveTab(this, tabs, tab)
+                18 -> tabs.setGroup(tab, null)
             }
             true
         }
@@ -786,25 +892,28 @@ class MainActivity : AppCompatActivity(), TabManager.Listener {
 
     // ------------------------------------------------------------------ sessions
 
-    private fun snapshot(id: String, name: String, created: Long): Session {
-        val list = tabs.tabs.filter { !it.isBlank || it.pendingUrl != null }
+    private fun snapshot(id: String, name: String, created: Long, only: List<Tab>? = null): Session {
+        val list = (only ?: tabs.tabs).filter { !it.isBlank || it.pendingUrl != null }
         val focusedIdx = list.indexOf(tabs.focused).coerceAtLeast(0)
+        val usedGroups = list.mapNotNull { tabs.groupOf(it) }.distinct()
         return Session(
             id, name, if (created == 0L) System.currentTimeMillis() else created, System.currentTimeMillis(),
             list.map { t ->
                 val v = t.mainVideo()
                 SessionTab(
                     t.errorFor ?: t.pendingUrl ?: t.url, t.displayTitle(), t.muted, tabs.isInMultiviewSet(t),
-                    if (v != null && v.duration > 30 && v.time > 5) v.time else if (t.pendingSeek > 0) t.pendingSeek else 0.0
+                    if (v != null && v.duration > 30 && v.time > 5) v.time else if (t.pendingSeek > 0) t.pendingSeek else 0.0,
+                    t.groupId,
                 )
             },
-            focusedIdx, tabs.inMultiview
+            focusedIdx, tabs.inMultiview && only == null,
+            usedGroups.map { SessionGroup(it.id, it.name, it.color, it.collapsed) },
         )
     }
 
-    private fun promptSaveSession(existing: Session?) {
+    private fun promptSaveSession(existing: Session?, only: List<Tab>? = null, defaultName: String? = null) {
         val input = EditText(this).apply {
-            setText(existing?.name ?: "Session · " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date()))
+            setText(existing?.name ?: defaultName ?: ("Session · " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date())))
             setSelection(text.length)
             setSingleLine()
         }
@@ -813,10 +922,10 @@ class MainActivity : AppCompatActivity(), TabManager.Listener {
             addView(input)
         }
         MaterialAlertDialogBuilder(this)
-            .setTitle(if (existing == null) "Save open tabs as a session" else "Update session")
+            .setTitle(if (existing != null) "Update session" else if (only != null) "Save group as a session" else "Save open tabs as a session")
             .setView(box)
             .setPositiveButton(R.string.save) { _, _ ->
-                val s = snapshot(existing?.id ?: Store.newId(), input.text.toString().trim().ifEmpty { "Session" }, existing?.createdAt ?: 0L)
+                val s = snapshot(existing?.id ?: Store.newId(), input.text.toString().trim().ifEmpty { "Session" }, existing?.createdAt ?: 0L, only)
                 Store.upsertSession(this, s)
                 Capture.view(this, b.tiles, 640) { bmp ->
                     if (bmp != null) Thread { Store.saveSessionPreview(this, s.id, bmp) }.start()
@@ -839,6 +948,11 @@ class MainActivity : AppCompatActivity(), TabManager.Listener {
         if (created.isEmpty()) {
             if (tabs.tabs.isEmpty()) tabs.newTab(null)
             return
+        }
+        // Recreate the session's tab groups.
+        for (sg in s.groups) {
+            val members = created.filterIndexed { i, _ -> s.tabs[i].group == sg.id }
+            if (members.isNotEmpty()) tabs.createGroup(sg.name, sg.color, members).collapsed = sg.collapsed
         }
         if (focusRestored) {
             val mv = created.filterIndexed { i, _ -> s.tabs[i].inMultiview }
@@ -876,6 +990,7 @@ class MainActivity : AppCompatActivity(), TabManager.Listener {
         b.progress.visibility = if (hide) View.GONE else View.INVISIBLE
         b.exitImmersive.visibility = if (immersive && !pip) View.VISIBLE else View.GONE
         tabs.chromeHidden = hide
+        updateGroupBar()
         tabs.focused?.let { updateToolbar(it) }
     }
 

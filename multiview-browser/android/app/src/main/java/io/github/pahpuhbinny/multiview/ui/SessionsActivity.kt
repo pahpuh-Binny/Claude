@@ -134,7 +134,8 @@ class SessionsActivity : AppCompatActivity() {
             val s = sessions[position]
             h.name.text = s.name
             val date = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(s.updatedAt))
-            h.meta.text = "${s.tabs.size} tabs" + (if (s.multiview) " · multiview" else "") + " · $date"
+            h.meta.text = "${s.tabs.size} tabs" + (if (s.groups.isNotEmpty()) " · ${s.groups.size} group" + (if (s.groups.size == 1) "" else "s") else "") +
+                (if (s.multiview) " · multiview" else "") + " · $date"
             h.titles.text = s.tabs.joinToString(" · ") { it.title.ifBlank { it.url } }
             val f = Store.sessionPreview(this@SessionsActivity, s.id)
             h.preview.setImageBitmap(if (f.isFile) BitmapFactory.decodeFile(f.path) else null)
