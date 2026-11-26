@@ -177,11 +177,15 @@ object Vault {
         return ChannelMediaDataSource.prime(stream().newSeekableDecryptingChannel(ch, id.toByteArray()))
     }
 
-    fun thumbnail(context: Context, id: String): Bitmap? = try {
+    /** True once the vault has been unlocked and its keys loaded in this run of the app. */
+    val isOpen: Boolean get() = streaming != null
+
+    /** The video's thumbnail; [sample] 2 or 4 decodes it smaller to save memory. */
+    fun thumbnail(context: Context, id: String, sample: Int = 1): Bitmap? = try {
         val f = thumbFile(context, id)
         if (!f.isFile) null else {
             val plain = aead().decrypt(f.readBytes(), ("thumb:$id").toByteArray())
-            BitmapFactory.decodeByteArray(plain, 0, plain.size)
+            BitmapFactory.decodeByteArray(plain, 0, plain.size, BitmapFactory.Options().apply { inSampleSize = sample })
         }
     } catch (e: Exception) {
         null

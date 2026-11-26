@@ -15,6 +15,7 @@ A private Android browser built for watching videos. Videos keep playing when yo
 | **Tracker protection** | Third-party cookies are blocked. Tracking codes (`utm_`, `fbclid`, `gclid` and others) are removed from links. Sites receive Global Privacy Control and Do Not Track signals. Ad-attribution reporting is turned off, and pages get a generic Chrome user agent instead of the one that identifies your phone model and the app. |
 | **Search, SafeSearch off** | Choose DuckDuckGo (default), Brave Search, Startpage, Qwant, Google or Bing. SafeSearch is always off. Nothing is sent while you type (no search suggestions), and searches aren't saved. |
 | **Saving videos (the vault)** | When a page has a video file or stream, the download button appears in the address bar. See [How saved videos are kept safe](#how-saved-videos-are-kept-safe). |
+| **Vault gallery** | Watch your saved videos together as a video wall: 2, 4, 8, 16, 24 or all of them at once, with pages when there are more. Pinch to zoom, drag or fling to move around, and double-tap a video to zoom in on it. Tap a video to hear it, or use **Add to mix** to hear several. Make any video **bigger** (up to 4×4 tiles) or **smaller**, and the others flow around it. Sizes, order (newest first or shuffled) and crop-or-fit are remembered. |
 | **Cast** | Send a page's video to a Chromecast or Google TV, starting where you were. For sites that don't expose a video file (YouTube, Netflix…), **Mirror screen** opens Android's screen casting. |
 | **Tab groups** | Put tabs in named, coloured groups, for example "Sports", "Music" or "Watch later". In the tab overview, groups appear as sections you can collapse. From a group's menu you can **watch it together** in multiview, pause, play, mute or unmute the whole group, open a new tab in it, rename or recolour it, save it as a session, ungroup it or close it. While you're in a grouped tab, a bar under the address bar lists the group's tabs so you can switch between them in one tap. Links that a grouped tab opens in a new tab join its group. |
 | **Sessions** | Save your open tabs, including their groups, which ones were in multiview and where each video was, as a named session with a preview picture. Reopen it later, replacing or adding to your tabs. Your tabs are also reopened automatically when the app starts (you can turn this off). |
@@ -50,6 +51,7 @@ Needs Android 8.0 or newer. Casting needs Google Play services; everything else 
 - **Full screen:** a video's own full-screen button works in every tile. In multiview, **Menu → Hide browser bars** gives you a clean video wall.
 - **Leaving the app:** press Home and everything keeps playing; use the notification to pause or resume. Pressing Back on the last page also leaves without closing anything. **Menu → Exit** closes everything.
 - **Save a video:** tap the download button in the address bar, then **Save to vault**. Progress shows in the notification and in **Menu → Downloads vault**.
+- **Gallery:** in **Menu → Downloads vault**, tap **Gallery** and pick how many videos to show. Tap a video to listen to it (tap again to mute it). Long-press a video for **Play/Pause, Smaller, Bigger, Zoom, Open** and **Add to mix**. The ⛶ button hides the controls; tap an empty spot to bring them back.
 - **Cast:** tap the download button and choose **Cast**, or use the cast icon (it appears when a TV is on your Wi-Fi).
 
 ## Good to know
@@ -57,6 +59,7 @@ Needs Android 8.0 or newer. Casting needs Google Play services; everything else 
 - **Sound in several tabs at once:** Android gives sound to one player at a time, so when two tabs both want sound, the newest one gets it and the other keeps playing muted. Multiview's default (sound follows the tile you tap) avoids this.
 - **YouTube and other big sites** stream videos in split-up pieces, so there's no file to save or send to a TV. They still play in the background and in multiview, and Mirror screen works for them.
 - **Logins:** sites keep you signed in unless you turn on **Clear cookies and site data on exit**.
+- **Many videos at once:** every phone has a limit on how many videos it can decode at the same time. The gallery plays the videos you can see most of, plus any you're listening to, live. The rest show a still frame until you zoom in on them. It estimates your phone's limit and lowers it automatically if the phone runs out. **⋮ → Play every video live** tries them all.
 - **Battery:** videos playing with the screen off use the battery like any music or video app. Pause them from the notification when you're done.
 - This was built and tested off the phone: the Android build, unit tests, and the page script tested in Chromium (the engine Android's WebView uses). It hasn't been tried on a real device yet, so please report anything that misbehaves.
 
@@ -91,11 +94,11 @@ android/app/src/main/
   java/.../security/         Blocklists and their weekly updates
   java/.../media/            Background playback service and notification
   java/.../download/         Video saving: downloader, HLS, clean-file rebuild
-  java/.../vault/            Encrypted storage, vault screen and player
+  java/.../vault/            Encrypted storage, vault screen, gallery (video wall) and player
   java/.../cast/             Chromecast
   java/.../data/             Bookmarks, sessions and preview capture
   java/.../ui/               Screens: browser, tabs, bookmarks, sessions, settings
-android/app/src/test/        Unit tests (blocklists, HLS, file checks, encryption, tab groups and sessions)
+android/app/src/test/        Unit tests (blocklists, HLS, file checks, encryption, tab groups, sessions, gallery grid)
 tests/page-script/           Chromium tests for inject.js
 ```
 

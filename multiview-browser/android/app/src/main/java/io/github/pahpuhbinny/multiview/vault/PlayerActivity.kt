@@ -51,7 +51,8 @@ class PlayerActivity : AppCompatActivity() {
         title = item.title
         p.prepare()
         p.playWhenReady = true
-        savedInstanceState?.getLong("pos")?.let { p.seekTo(it) }
+        val start = savedInstanceState?.getLong("pos") ?: intent.getLongExtra(EXTRA_POSITION, 0L)
+        if (start > 0) p.seekTo(start)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -72,5 +73,6 @@ class PlayerActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_ID = "id"
+        const val EXTRA_POSITION = "position"
     }
 }

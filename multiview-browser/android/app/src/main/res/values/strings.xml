@@ -36,4 +36,10 @@
     <string name="close_all">Close all</string>
     <string name="other_tabs">Other tabs</string>
     <string name="switcher_hint">Tap “+ Multiview” on up to 4 tabs to watch them side by side. Long-press a tab to put it in a group. Every tab keeps playing in the background.</string>
+    <string name="gallery">Gallery</string>
+    <string name="gallery_hint">Pinch to zoom · drag to move · tap a video to hear it · double-tap to zoom in · long-press for more</string>
+    <string name="previous_page">Previous page</string>
+    <string name="next_page">Next page</string>
+    <string name="mute_all">Mute all</string>
+    <string name="full_screen">Full screen</string>
 </resources>

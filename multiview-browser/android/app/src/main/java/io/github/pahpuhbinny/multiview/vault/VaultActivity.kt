@@ -54,6 +54,7 @@ class VaultActivity : AppCompatActivity() {
     private val thumbs = HashMap<String, android.graphics.Bitmap?>()
     private var unlocked = false
     private var exportId: String? = null
+    private lateinit var galleryButton: com.google.android.material.button.MaterialButton
 
     private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("video/*")) { uri ->
         val id = exportId ?: return@registerForActivityResult
@@ -87,6 +88,15 @@ class VaultActivity : AppCompatActivity() {
             setPadding(dp(16), dp(10), dp(16), dp(6))
         }
         col.addView(note)
+        galleryButton = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Gallery: watch them all at once"
+            setIconResource(R.drawable.ic_grid)
+            visibility = View.GONE
+            setOnClickListener { openGallery() }
+        }
+        col.addView(galleryButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            setMargins(dp(14), dp(4), dp(14), dp(6))
+        })
         empty = TextView(this).apply {
             text = getString(R.string.vault_empty)
             setTextColor(ContextCompat.getColor(this@VaultActivity, R.color.text_dim))
@@ -156,7 +166,21 @@ class VaultActivity : AppCompatActivity() {
         rows = Downloads.jobs.filter { it.state != Downloads.State.DONE }.reversed().map { Row.Job(it) } +
             Vault.items().map { Row.Item(it) }
         empty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
+        galleryButton.visibility = if (Vault.items().size >= 2) View.VISIBLE else View.GONE
         adapter.notifyDataSetChanged()
+        invalidateOptionsMenu()
+    }
+
+    private fun openGallery() {
+        startActivity(Intent(this, GalleryActivity::class.java))
+    }
+
+    override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
+        if (unlocked && Vault.items().isNotEmpty()) {
+            menu.add(0, 1, 0, R.string.gallery).setIcon(R.drawable.ic_grid)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        }
+        return true
     }
 
     private fun play(item: Vault.Item) {
@@ -319,6 +343,10 @@ class VaultActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == android.R.id.home) {
             finish()
+            return true
+        }
+        if (item.itemId == 1) {
+            openGallery()
             return true
         }
         return super.onOptionsItemSelected(item)
