@@ -8,9 +8,11 @@ The picture frame and news work with no extra parts. The microphone and speaker 
 
 | Part | What to buy | Notes |
 | --- | --- | --- |
-| Microphone | **INMP441** I2S microphone module (6 pins: SCK, WS, L/R, SD, VDD, GND) | About $3. Digital, so it picks up voices much more clearly than the analog mic boards. |
-| Speaker | **8 ohm, 1 to 3 W** small speaker, 28 to 40 mm | One with a **JST 1.25 mm 2-pin plug** plugs straight in. Otherwise solder it to a 2-pin pigtail. |
-| Cables | **JST 1.25 mm 4-pin** pigtails | Many CYD kits include one or two. You need one for CN1 and one for P3. |
+| Microphone | **INMP441** I2S microphone module (6 pins: SCK, WS, L/R, SD, VDD, GND) | About $3, often sold in packs of 3. Digital, so it picks up voices much more clearly than analog mic boards. Get one with the header pins already soldered if you can. |
+| Speaker | **8 ohm, 1 to 3 W** small speaker, 28 to 40 mm | One with a **1.25 mm 2-pin plug** (sold as "JST 1.25", "MX1.25" or "PH1.25") plugs straight in. Otherwise solder it to a 2-pin pigtail. |
+| Cables | Two **1.25 mm 4-pin to Dupont** cables | CYDs usually come with one. You need one for CN1 and one for P3. Plain 1.25 mm 4-pin pigtails also work if you solder. |
+
+Buzzers from Arduino or ESP32 starter kits can only beep, so they can't speak, and those kits don't include an I2S microphone.
 
 The firmware is set up for the INMP441. Other I2S microphones (such as the SPH0645) use a slightly different data format and may need code changes.
 
@@ -34,6 +36,26 @@ Use **3.3V, not 5V**. The INMP441 is a 3.3 V part.
 ### Speaker
 
 Plug it into the 2-pin connector labeled **SPEAK** (sometimes **P4**). Either way round is fine. The board has its own small amplifier on that connector, fed by the ESP32's GPIO 26.
+
+## Plug-in option (almost no soldering)
+
+If your INMP441 has header pins, and you have two 1.25 mm-to-Dupont cables (the kind with female Dupont plugs), you can push the plugs straight onto the mic's pins:
+
+| CN1 cable wire | INMP441 pin |
+| --- | --- |
+| GND | GND |
+| IO22 | SCK |
+| IO27 | WS |
+| 3.3V | VDD |
+
+| P3 cable wire | INMP441 pin |
+| --- | --- |
+| IO35 | SD |
+| GND | **L/R** (this ties L/R to ground, so no solder link is needed) |
+| IO22 | leave unplugged, tape the end |
+| IO21 | leave unplugged, tape the end |
+
+If a cable is too short, extend it with female-to-male jumper wires from a starter kit. Keep the total length under about 20 cm. The only soldering is the six header pins on the mic, if it didn't come with them fitted.
 
 ## Soldering, step by step
 
