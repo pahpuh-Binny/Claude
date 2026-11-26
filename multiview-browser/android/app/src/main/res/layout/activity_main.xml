@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg">
+
+    <LinearLayout
+        android:id="@+id/chrome"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="4dp"
+            android:paddingEnd="2dp">
+
+            <FrameLayout
+                android:id="@+id/shieldBox"
+                android:layout_width="40dp"
+                android:layout_height="40dp">
+
+                <ImageButton
+                    android:id="@+id/shieldBtn"
+                    style="@style/Multiview.IconButton"
+                    android:contentDescription="@string/protection"
+                    android:src="@drawable/ic_shield"
+                    app:tint="@color/safe" />
+
+                <TextView
+                    android:id="@+id/shieldCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="16dp"
+                    android:layout_gravity="end|bottom"
+                    android:layout_marginEnd="1dp"
+                    android:layout_marginBottom="3dp"
+                    android:background="@drawable/bg_badge"
+                    android:gravity="center"
+                    android:minWidth="16dp"
+                    android:paddingHorizontal="3dp"
+                    android:textColor="#06231B"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <EditText
+                android:id="@+id/urlField"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_marginHorizontal="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_url"
+                android:hint="@string/url_hint"
+                android:imeOptions="actionGo|flagNoExtractUi|flagNoPersonalizedLearning"
+                android:importantForAutofill="no"
+                android:inputType="textUri|textNoSuggestions"
+                android:paddingHorizontal="14dp"
+                android:selectAllOnFocus="true"
+                android:singleLine="true"
+                android:textColor="@color/text"
+                android:textColorHint="@color/text_dim"
+                android:textSize="15sp" />
+
+            <ImageButton
+                android:id="@+id/mediaBtn"
+                style="@style/Multiview.IconButton"
+                android:contentDescription="@string/media_on_page"
+                android:src="@drawable/ic_download"
+                android:visibility="gone"
+                app:tint="@color/accent" />
+
+            <androidx.mediarouter.app.MediaRouteButton
+                android:id="@+id/castBtn"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:visibility="gone" />
+
+            <ImageButton
+                android:id="@+id/multiviewBtn"
+                style="@style/Multiview.IconButton"
+                android:contentDescription="@string/multiview"
+                android:src="@drawable/ic_grid" />
+
+            <FrameLayout
+                android:id="@+id/tabsBtn"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/tabs">
+
+                <TextView
+                    android:id="@+id/tabsCount"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_tabs_count"
+                    android:gravity="center"
+                    android:textColor="@color/text"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:id="@+id/tabsAudioDot"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_gravity="end|top"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginEnd="5dp"
+                    android:background="@drawable/bg_badge"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <ImageButton
+                android:id="@+id/menuBtn"
+                style="@style/Multiview.IconButton"
+                android:layout_width="36dp"
+                android:contentDescription="@string/menu"
+                android:src="@drawable/ic_more" />
+        </LinearLayout>
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progress"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:indeterminate="false"
+            android:max="100"
+            app:indicatorColor="@color/accent"
+            app:trackColor="@android:color/transparent"
+            app:trackThickness="2dp" />
+
+        <io.github.pahpuhbinny.multiview.browser.TileLayout
+            android:id="@+id/tiles"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/fullscreenHost"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/black"
+        android:visibility="gone" />
+
+    <ImageButton
+        android:id="@+id/exitImmersive"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="10dp"
+        android:alpha="0.75"
+        android:background="@drawable/bg_round_scrim"
+        android:contentDescription="@string/exit_fullscreen"
+        android:padding="8dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_fullscreen_exit"
+        android:visibility="gone"
+        app:tint="@color/text" />
+</FrameLayout>

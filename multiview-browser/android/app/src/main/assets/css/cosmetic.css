@@ -1,0 +1,8 @@
+ins.adsbygoogle, .adsbygoogle { display: none !important; }
+iframe[id^="google_ads_iframe"], div[id^="google_ads_iframe"], div[id^="div-gpt-ad"] { display: none !important; }
+amp-ad, amp-embed[type="taboola"], amp-embed[type="outbrain"] { display: none !important; }
+.trc_related_container, .trc_rbox_container, div[id^="taboola-"], .OUTBRAIN, .ob-widget { display: none !important; }
+div[id^="ezoic-pub-ad"], .ezoic-ad, div[id^="mgid_"] { display: none !important; }
+ytd-ad-slot-renderer, ytd-promoted-sparkles-web-renderer, ytd-display-ad-renderer, ytd-in-feed-ad-layout-renderer, ytd-banner-promo-renderer, #masthead-ad { display: none !important; }
+ytm-promoted-sparkles-web-renderer, ytm-companion-ad-renderer, ad-slot-renderer, ytm-promoted-video-renderer { display: none !important; }
+.ytp-ad-overlay-container, .ytp-ad-overlay-slot, .ytp-ad-image-overlay { display: none !important; }

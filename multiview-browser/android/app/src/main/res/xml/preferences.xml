@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="Playback" app:iconSpaceReserved="false">
+        <SwitchPreferenceCompat
+            app:key="keep_playing"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Keep videos playing in the background"
+            app:summary="Videos keep going when you switch tabs, leave the app or turn the screen off" />
+        <SwitchPreferenceCompat
+            app:key="pause_guard"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Keep other tabs going when one starts playing"
+            app:summary="Android lets only one tab have sound; the others keep playing silently instead of stopping" />
+        <SwitchPreferenceCompat
+            app:key="solo_audio"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Multiview: sound follows the tile you tap"
+            app:summary="Off: every tile keeps its own sound setting" />
+        <SwitchPreferenceCompat
+            app:key="auto_pip"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:title="Picture-in-picture when leaving the app"
+            app:summary="Shrink to a floating window instead of playing in the background" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Protection" app:iconSpaceReserved="false">
+        <SwitchPreferenceCompat
+            app:key="block_ads"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Block ads" />
+        <SwitchPreferenceCompat
+            app:key="skip_video_ads"
+            app:defaultValue="true"
+            app:dependency="block_ads"
+            app:iconSpaceReserved="false"
+            app:title="Skip video ads"
+            app:summary="Presses “Skip ad” for you and fast-forwards ads that can't be skipped" />
+        <SwitchPreferenceCompat
+            app:key="block_trackers"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Block trackers and analytics" />
+        <SwitchPreferenceCompat
+            app:key="block_malware"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Block malware and phishing sites"
+            app:summary="Uses the malware and phishing lists below" />
+        <SwitchPreferenceCompat
+            app:key="safe_browsing"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Google Safe Browsing"
+            app:summary="Warns about dangerous sites. Checks use anonymous partial fingerprints of addresses" />
+        <SwitchPreferenceCompat
+            app:key="https_only"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="HTTPS-only mode"
+            app:summary="Always use encrypted connections; warn before opening a site that doesn't support them" />
+        <SwitchPreferenceCompat
+            app:key="block_3p_cookies"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Block third-party cookies"
+            app:summary="Stops embedded content from following you across sites" />
+        <SwitchPreferenceCompat
+            app:key="strip_params"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Remove tracking codes from links"
+            app:summary="Strips utm_, fbclid, gclid and similar from addresses" />
+        <SwitchPreferenceCompat
+            app:key="gpc"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Ask sites not to sell or share your data"
+            app:summary="Sends Global Privacy Control and Do Not Track" />
+        <SwitchPreferenceCompat
+            app:key="confirm_external_apps"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Ask before a site opens another app" />
+        <SwitchPreferenceCompat
+            app:key="clear_on_exit"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:title="Clear cookies and site data on exit"
+            app:summary="You'll be signed out of sites each time" />
+        <Preference
+            app:key="clear_now"
+            app:iconSpaceReserved="false"
+            app:title="Clear cookies and site data now" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="filters"
+        app:title="Filter lists"
+        app:iconSpaceReserved="false">
+        <SwitchPreferenceCompat
+            app:key="auto_update_filters"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Update lists every week" />
+        <Preference
+            app:key="update_filters"
+            app:iconSpaceReserved="false"
+            app:title="Update lists now" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Search" app:iconSpaceReserved="false">
+        <ListPreference
+            app:key="search_engine"
+            app:defaultValue="duckduckgo"
+            app:iconSpaceReserved="false"
+            app:title="Search engine"
+            app:useSimpleSummaryProvider="true" />
+        <Preference
+            app:key="search_note"
+            app:iconSpaceReserved="false"
+            app:selectable="false"
+            app:summary="SafeSearch is always off. Nothing you type is sent anywhere until you press Go, and searches aren't saved." />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Downloads vault" app:iconSpaceReserved="false">
+        <SwitchPreferenceCompat
+            app:key="vault_lock"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Lock the vault"
+            app:summary="Ask for your fingerprint, face or screen lock to open downloads" />
+        <SwitchPreferenceCompat
+            app:key="vault_secure_screen"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Hide downloads from screenshots and recent apps" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Tabs" app:iconSpaceReserved="false">
+        <SwitchPreferenceCompat
+            app:key="restore_tabs"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:title="Reopen your tabs when the app starts" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="About" app:iconSpaceReserved="false">
+        <Preference
+            app:key="about"
+            app:iconSpaceReserved="false"
+            app:selectable="false"
+            app:title="Multiview" />
+    </PreferenceCategory>
+</PreferenceScreen>

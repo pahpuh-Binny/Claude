@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    android:background="@drawable/bg_card"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/thumbBox"
+        android:layout_width="match_parent"
+        android:layout_height="118dp">
+
+        <ImageView
+            android:id="@+id/thumb"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/surface"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop" />
+
+        <ImageButton
+            android:id="@+id/audio"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_gravity="start|top"
+            android:layout_margin="6dp"
+            android:background="@drawable/bg_round_scrim"
+            android:contentDescription="@string/mute"
+            android:padding="7dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_volume_up"
+            android:visibility="gone"
+            app:tint="@color/text" />
+
+        <ImageButton
+            android:id="@+id/close"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_gravity="end|top"
+            android:layout_margin="6dp"
+            android:background="@drawable/bg_round_scrim"
+            android:contentDescription="@string/close"
+            android:padding="8dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_close"
+            app:tint="@color/text" />
+
+        <TextView
+            android:id="@+id/multiviewToggle"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:layout_gravity="end|bottom"
+            android:layout_margin="6dp"
+            android:background="@drawable/bg_chip_scrim"
+            android:drawablePadding="4dp"
+            android:gravity="center"
+            android:paddingHorizontal="8dp"
+            android:text="@string/multiview"
+            android:textColor="@color/text"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/playing"
+            android:layout_width="wrap_content"
+            android:layout_height="22dp"
+            android:layout_gravity="start|bottom"
+            android:layout_margin="6dp"
+            android:background="@drawable/bg_chip_scrim"
+            android:gravity="center"
+            android:paddingHorizontal="7dp"
+            android:text="▶ Playing"
+            android:textColor="@color/safe"
+            android:textSize="10sp"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:minLines="2"
+        android:paddingHorizontal="10dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="10dp"
+        android:textColor="@color/text"
+        android:textSize="13sp" />
+</LinearLayout>

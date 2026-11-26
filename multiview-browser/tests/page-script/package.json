@@ -1,0 +1,11 @@
+{
+  "name": "multiview-page-script-tests",
+  "private": true,
+  "description": "Tests for the script Multiview injects into web pages",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "devDependencies": {
+    "playwright": "1.48.2"
+  }
+}

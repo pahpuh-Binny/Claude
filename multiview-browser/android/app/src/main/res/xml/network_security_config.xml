@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only trust the system's certificate authorities, never user-added ones,
+     so a certificate installed on the phone can't be used to read your traffic.
+     Plain http pages are allowed only after the HTTPS-only warning lets you through. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

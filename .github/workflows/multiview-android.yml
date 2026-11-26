@@ -1,0 +1,53 @@
+name: Multiview Browser APK
+
+on:
+  push:
+    paths:
+      - "multiview-browser/**"
+      - ".github/workflows/multiview-android.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: multiview-browser/android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Unit tests
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Build signed APK
+        run: ./gradlew --no-daemon assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MultiviewBrowser-apk
+          path: multiview-browser/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+  page-script:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: multiview-browser/tests/page-script
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Test the script injected into web pages
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+          npm test
